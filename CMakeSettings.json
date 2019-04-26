@@ -1,0 +1,46 @@
+﻿{
+  "environments": [
+    {
+      "cmakeCommandArgs": "-Wno-dev",
+      "buildCommandArgs": "-v"
+    }
+  ],
+  "configurations": [
+    {
+      "name": "x64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\build\\${name}",
+      "installRoot": "${projectDir}\\install\\${name}",
+      "cmakeCommandArgs": "${env.cmakeCommandArgs}",
+      "buildCommandArgs": "${env.buildCommandArgs}",
+      "ctestCommandArgs": "",
+      "variables": []
+    },
+    {
+      "name": "x64-RelWithDebInfo",
+      "generator": "Ninja",
+      "configurationType": "RelWithDebInfo",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\build\\${name}",
+      "installRoot": "${projectDir}\\install\\${name}",
+      "cmakeCommandArgs": "${env.cmakeCommandArgs}",
+      "buildCommandArgs": "${env.buildCommandArgs}",
+      "ctestCommandArgs": "",
+      "variables": []
+    },
+    {
+      "name": "x64-Release",
+      "generator": "Ninja",
+      "configurationType": "Release",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\build\\${name}",
+      "installRoot": "${projectDir}\\install\\${name}",
+      "cmakeCommandArgs": "${env.cmakeCommandArgs}",
+      "buildCommandArgs": "${env.buildCommandArgs}",
+      "ctestCommandArgs": "",
+      "variables": []
+    }
+  ]
+}

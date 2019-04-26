@@ -1,0 +1,7 @@
+#pragma once
+
+namespace vgl
+{
+    constexpr const char* resources_path = "@CMAKE_SOURCE_DIR@/resources/";
+    constexpr const char* shaders_path = "@SHADERS_BIN_PATH@/";
+}
