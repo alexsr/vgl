@@ -2,6 +2,6 @@
 
 namespace vgl
 {
-    constexpr const char* resources_path = "C:/Users/alexa/Documents/projects/vgl/resources/";
-    constexpr const char* shaders_path = "C:/Users/alexa/Documents/projects/vgl/build/x64-Debug/shaders/";
+    const std::filesystem::path resources_path = "C:/Users/alexa/Documents/projects/vgl/resources/";
+    const std::filesystem::path shaders_path = "C:/Users/alexa/Documents/projects/vgl/build/x64-Debug/shaders/";
 }

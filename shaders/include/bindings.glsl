@@ -1,0 +1,5 @@
+#ifndef BINDINGS_GLSL
+#define BINDINGS_GLSL
+#define CAM_BINDING 0
+
+#endif // BINDINGS_GLSL

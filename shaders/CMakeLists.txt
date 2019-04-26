@@ -41,7 +41,8 @@ macro(compile_to_spirv_all platform)
 	endforeach()
 endmacro()
 
-compile_glsl_to_spirv(imgui/imgui.vert)
+compile_glsl_to_spirv(minimal/minimal.vert)
+compile_glsl_to_spirv(minimal/minimal.frag)
 
 add_custom_target(shaders ALL DEPENDS ${SPIRV_opengl})
 unset(SPIRV_opengl)
