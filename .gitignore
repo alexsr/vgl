@@ -1,0 +1,12 @@
+# Build directories
+build/*
+
+# Resource files
+resources/fonts/*
+resources/models/*
+
+# Visual Studio files
+.vs/
+
+# External projects that are not submodules
+external/glad/*
