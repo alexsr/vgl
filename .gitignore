@@ -11,3 +11,6 @@ resources/models/*
 
 # External projects that are not submodules
 external/glad/*
+
+#Generated files
+src/vgl/file/file_paths.hpp
