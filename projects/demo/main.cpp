@@ -11,9 +11,9 @@
 #include "assimp/scene.h"
 #include <execution>
 #include "glm/gtc/matrix_transform.hpp"
-#include <fstream>
 #include <array>
 #include <iostream>
+#include "vgl/gpu_api/gl/shader.hpp"
 
 struct Context {
 	GLint major_version{};
@@ -113,14 +113,6 @@ glm::vec4 to_glm_vec4(const aiVector3D& v, float w = 1.0f) {
 	return glm::vec4(v.x, v.y, v.z, w);
 }
 
-std::vector<std::byte> load_file_binary(const std::filesystem::path& file_path) {
-	std::ifstream f(file_path, std::ios::binary | std::ios::in);
-	const auto file_size = std::filesystem::file_size(file_path);
-	std::vector<std::byte> buffer(file_size);
-	f.read(reinterpret_cast<char*>(buffer.data()), file_size);
-	return buffer;
-}
-
 Mesh load_mesh(const std::filesystem::path& file_path) {
 	Assimp::Importer importer;
 	auto scene = importer.ReadFile(file_path.string(), 0);
@@ -176,7 +168,6 @@ int main() {
     ImGui_ImplOpenGL3_Init("#version 460");
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-
 	struct Cam_mats {
 		glm::mat4 model{};
 		glm::mat4 view{};
@@ -192,37 +183,10 @@ int main() {
 	glNamedBufferStorage(cam_ssbo, sizeof(cam), &cam, 0);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, cam_ssbo);
 
-	auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-	auto vert_source = load_file_binary(vgl::shaders_path / "minimal/minimal.vert");
-	glShaderBinary(1, &vertex_shader, GL_SHADER_BINARY_FORMAT_SPIR_V, vert_source.data(), static_cast<int>(vert_source.size()));
-	glSpecializeShader(vertex_shader, "main", 0, nullptr, nullptr);
-	GLint status = 0;
-	glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &status);
-	auto frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	auto frag_source = load_file_binary(vgl::shaders_path / "minimal/minimal.frag");
-	glShaderBinary(1, &frag_shader, GL_SHADER_BINARY_FORMAT_SPIR_V, frag_source.data(), frag_source.size());
-	glSpecializeShader(frag_shader, "main", 0, nullptr, nullptr);
-	glGetShaderiv(frag_shader, GL_COMPILE_STATUS, &status);
+	auto vertex_shader = vgl::create_shader_spirv(GL_VERTEX_SHADER, vgl::shaders_path / "minimal/minimal.vert");
+	auto frag_shader = vgl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "minimal/minimal.frag");
 
-	const GLuint program = glCreateProgram();
-	glAttachShader(program, vertex_shader);
-	glAttachShader(program, frag_shader);
-	glLinkProgram(program);
-	GLint is_linked = 0;
-	glGetProgramiv(program, GL_LINK_STATUS, &is_linked);
-	if (is_linked == GL_FALSE) {
-		GLint length = 0;
-		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
-		std::string info_log(length, ' ');
-		glGetProgramInfoLog(program, length, &length, info_log.data());
-		std::cout << info_log;
-		glDeleteProgram(program);
-	}
-
-	glDetachShader(program, vertex_shader);
-	glDetachShader(program, frag_shader);
-	glDeleteShader(vertex_shader);
-	glDeleteShader(frag_shader);
+	const GLuint program = vgl::create_program(vertex_shader, frag_shader);
 
 	Mesh mesh {};
 	bool mesh_loaded = false;
