@@ -1,0 +1,227 @@
+#include "GLFW/glfw3.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
+#include "imgui/imgui.h"
+#include "imgui/examples/imgui_impl_glfw.h"
+#include "imgui/examples/imgui_impl_opengl3.h"
+#include "glm/glm.hpp"
+#include "vgl/file/file.hpp"
+#include "assimp/Importer.hpp"
+#include "assimp/postprocess.h"
+#include "assimp/scene.h"
+#include <execution>
+#include "glm/gtc/matrix_transform.hpp"
+#include <array>
+#include <iostream>
+#include "vgl/gpu_api/gl/shader.hpp"
+#include "vgl/gpu_api/gl/buffer.hpp"
+#include "vgl/gpu_api/gl/vao.hpp"
+#include "vgl/gpu_api/gl/texture.hpp"
+
+struct Context {
+    GLint major_version{};
+    GLint minor_version{};
+    std::string vendor;
+    std::string renderer;
+    std::string extended_glsl_version;
+    std::string glsl_version;
+
+    GLint binary_format_count;
+    std::vector<GLint> binary_formats;
+
+    //    // Buffer information
+
+    //    GLint max_ubo_bindings;
+    //    GLint max_ssbo_bindings;
+
+    GLint max_framebuffer_width{};
+    GLint max_framebuffer_height{};
+    GLint max_framebuffer_layers{};
+    GLint max_framebuffer_samples{};
+    GLint max_renderbuffer_size{};
+    GLint max_color_attachments{};
+
+    GLint max_texture_size{};
+    GLint max_array_texture_layers{};
+    GLint max_cube_map_texture_size{};
+    GLint max_rectangle_texture_size{};
+    GLint max_texture_buffer_size{};
+    GLint max_3d_texture_size{};
+    GLint max_texture_lod_bias{};
+    GLint max_color_texture_samples{};
+    GLint max_depth_texture_samples{};
+
+    std::array<GLint, 3> max_workgroup_count{};
+    std::array<GLint, 3> max_workgroup_size{};
+    GLint max_workgroup_invocations{};
+    GLint max_compute_shared_memory_size{};
+
+    void retrieve_info() {
+        glGetIntegerv(GL_MAJOR_VERSION, &major_version);
+        glGetIntegerv(GL_MINOR_VERSION, &minor_version);
+        vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+        renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+        extended_glsl_version = reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
+        glsl_version = std::to_string(major_version * 100 + minor_version * 10);
+
+        // framebuffer queries
+        glGetIntegerv(GL_MAX_FRAMEBUFFER_WIDTH, &max_framebuffer_width);
+        glGetIntegerv(GL_MAX_FRAMEBUFFER_HEIGHT, &max_framebuffer_height);
+        glGetIntegerv(GL_MAX_FRAMEBUFFER_LAYERS, &max_framebuffer_layers);
+        glGetIntegerv(GL_MAX_FRAMEBUFFER_SAMPLES, &max_framebuffer_samples);
+        glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &max_renderbuffer_size);
+        glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &max_color_attachments);
+        glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
+        glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &max_array_texture_layers);
+        glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, &max_cube_map_texture_size);
+        glGetIntegerv(GL_MAX_RECTANGLE_TEXTURE_SIZE, &max_rectangle_texture_size);
+        glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE, &max_texture_buffer_size);
+        glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &max_3d_texture_size);
+        glGetIntegerv(GL_MAX_TEXTURE_LOD_BIAS, &max_texture_lod_bias);
+        glGetIntegerv(GL_MAX_COLOR_TEXTURE_SAMPLES, &max_color_texture_samples);
+        glGetIntegerv(GL_MAX_DEPTH_TEXTURE_SAMPLES, &max_depth_texture_samples);
+
+        // compute shader queries
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &max_workgroup_count.at(0));
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &max_workgroup_count.at(1));
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &max_workgroup_count.at(2));
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &max_workgroup_size.at(0));
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &max_workgroup_size.at(1));
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &max_workgroup_size.at(2));
+        glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &max_workgroup_invocations);
+        glGetIntegerv(GL_MAX_COMPUTE_SHARED_MEMORY_SIZE, &max_compute_shared_memory_size);
+    }
+
+    void print_info() {
+        std::cout << "OpenGL Version: " << major_version << "." << minor_version;
+        std::cout << "Vendor: " << vendor;
+        std::cout << "Renderer: " << renderer;
+        std::cout << "GLSL Version: " << extended_glsl_version;
+    }
+};
+
+
+struct Mesh {
+    std::vector<glm::vec4> vertices;
+    std::vector<glm::vec4> normals;
+    std::vector<glm::vec2> uvs;
+};
+
+glm::vec4 to_glm_vec4(const aiVector3D& v, float w = 1.0f) {
+    return glm::vec4(v.x, v.y, v.z, w);
+}
+
+Mesh load_mesh(const std::filesystem::path& file_path) {
+    Assimp::Importer importer;
+    auto scene = importer.ReadFile(file_path.string(), 0);
+
+    auto mesh = scene->mMeshes[0];
+    Mesh res{};
+    res.vertices.resize(mesh->mNumVertices);
+    res.normals.resize(mesh->mNumVertices);
+    res.uvs.resize(mesh->mNumVertices);
+    std::transform(std::execution::par, mesh->mVertices, mesh->mVertices + mesh->mNumVertices,
+                   std::begin(res.vertices), [](const aiVector3D& v) {
+                       return to_glm_vec4(v, 1.0f);
+                   });
+    if (mesh->HasNormals()) {
+        std::transform(std::execution::par, mesh->mNormals, mesh->mNormals + mesh->mNumVertices,
+                       std::begin(res.normals), [](const aiVector3D& v) {
+                           return to_glm_vec4(v, 0.0f);
+                       });
+    }
+    if (mesh->HasTextureCoords(0)) {
+        std::transform(std::execution::par, mesh->mTextureCoords[0], mesh->mTextureCoords[0] + mesh->mNumVertices,
+                       std::begin(res.uvs), [](const aiVector3D& v) {
+                           return glm::vec2(v.x, v.y);
+                       });
+    }
+    return res;
+}
+
+int main() {
+    glfwInit();
+    auto w_res = glm::ivec2(1600, 900);
+    auto window = glfwCreateWindow(w_res.x, w_res.y, "Hello", nullptr, nullptr);
+    glfwMakeContextCurrent(window);
+    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
+    }
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glViewport(0, 0, w_res.x, w_res.y);
+
+    Context ctx;
+    ctx.retrieve_info();
+    ctx.print_info();
+    glEnable(GL_DEPTH_TEST);
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 460");
+
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    struct Cam_mats {
+        glm::mat4 model{};
+        glm::mat4 view{};
+        glm::mat4 proj{};
+    } cam;
+
+    cam.model = glm::mat4(1.0f);
+    cam.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    cam.proj = glm::perspective(glm::radians(60.0f), 1.6f, 0.001f, 100.0f);
+
+    GLuint cam_ssbo = vgl::gl::create_buffer(cam);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, cam_ssbo);
+
+    auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vgl::shaders_path / "minimal/minimal.vert");
+    auto frag_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "minimal/minimal.frag");
+
+    const auto program = vgl::gl::create_program(vertex_shader, frag_shader);
+
+    vgl::gl::delete_shaders(vertex_shader, frag_shader);
+    Mesh mesh{};
+    bool mesh_loaded = false;
+
+    GLuint model_vbo = 0;
+    GLuint model_vao = 0;
+
+    glUseProgram(program);
+
+    auto screen_vao = vgl::gl::create_vertex_array();
+
+    while (!glfwWindowShouldClose(window)) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+		if (ImGui::Begin("Import Mesh")) {
+			if (ImGui::Button("Load Mesh")) {
+				auto file = vgl::open_file_dialog(vgl::resources_path);
+				if (file) {
+					mesh = load_mesh(file.value());
+					mesh_loaded = true;
+				    model_vbo = vgl::gl::create_buffer(mesh.vertices);
+					model_vao = vgl::gl::create_vertex_array();
+					glEnableVertexArrayAttrib(model_vao, 0);
+					glVertexArrayVertexBuffer(model_vao, 0, model_vbo, 0, vgl::sizeof_value_type(mesh.vertices));
+					glVertexArrayAttribFormat(model_vao, 0, 4, GL_FLOAT, GL_FALSE, 0);
+					glVertexArrayAttribBinding(model_vao, 0, 0);
+				}
+			}
+		}
+        if (mesh_loaded) {
+            glBindVertexArray(model_vao);
+            glDrawArrays(GL_TRIANGLES, 0, static_cast<int>(mesh.vertices.size()));
+        }
+        ImGui::End();
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    glfwTerminate();
+}

@@ -4,6 +4,10 @@ if(${CMAKE_VERSION} VERSION_LESS 3.12)
     cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
 endif()
 
-add_executable(demo demo/main.cpp)
-target_link_libraries(demo PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
+add_executable(example_model example_model/main.cpp)
+target_link_libraries(example_model PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
+							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+
+add_executable(example_texture example_texture/main.cpp)
+target_link_libraries(example_texture PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
 							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
