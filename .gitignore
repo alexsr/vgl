@@ -2,8 +2,7 @@
 build/*
 
 # Resource files
-resources/fonts/*
-resources/models/*
+resources/*
 
 # Visual Studio files
 .vs/
