@@ -16,7 +16,6 @@
 #include "vgl/gpu_api/gl/shader.hpp"
 #include "vgl/gpu_api/gl/buffer.hpp"
 #include "vgl/gpu_api/gl/vao.hpp"
-#include "vgl/gpu_api/gl/texture.hpp"
 
 struct Context {
     GLint major_version{};

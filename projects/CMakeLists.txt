@@ -7,7 +7,11 @@ endif()
 add_executable(example_model example_model/main.cpp)
 target_link_libraries(example_model PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
 							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
-
+							
 add_executable(example_texture example_texture/main.cpp)
 target_link_libraries(example_texture PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
+							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+
+add_executable(example_filtered example_filtered/main.cpp)
+target_link_libraries(example_filtered PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
 							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
