@@ -62,6 +62,7 @@ int main() {
 
     int kernel_size = 0;
     int filter = 0;
+    float strength = 0.0f;
 
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -71,8 +72,10 @@ int main() {
         if (ImGui::Begin("Kernel size")) {
             ImGui::SliderInt("Filter", &filter, 0, 100);
             ImGui::SliderInt("Kernel Size", &kernel_size, 0, 100);
+            ImGui::DragFloat("Strength", &strength, 0.01f, 0.0f, 100.0f);
             glUniform1i(0, kernel_size);
             glUniform1i(1, filter);
+            glUniform1f(2, strength);
         }
         ImGui::End();
         glBindVertexArray(screen_vao);
