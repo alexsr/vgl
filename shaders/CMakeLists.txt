@@ -43,6 +43,8 @@ endmacro()
 
 compile_glsl_to_spirv(minimal/minimal.vert)
 compile_glsl_to_spirv(minimal/minimal.frag)
+compile_glsl_to_spirv(minimal/texture.vert)
+compile_glsl_to_spirv(minimal/texture.frag)
 
 add_custom_target(shaders ALL DEPENDS ${SPIRV_opengl})
 unset(SPIRV_opengl)
