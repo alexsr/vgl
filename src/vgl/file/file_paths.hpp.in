@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 namespace vgl
 {
     const std::filesystem::path resources_path = "@CMAKE_SOURCE_DIR@/resources/";

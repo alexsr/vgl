@@ -1,7 +1,6 @@
 #pragma once
 
 #include "nfd.h"
-#include <filesystem>
 #include <optional>
 #include "file_paths.hpp"
 #include <fstream>
