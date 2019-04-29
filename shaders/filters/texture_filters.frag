@@ -22,6 +22,8 @@ float binomial_denom(float n, float k) {
     return factorial(k) * factorial(n - k);
 }
 
+#define PI 3.1415926535897932384626433832795
+
 void main() {
     ivec2 tex_size = textureSize(tex, 0);
     vec2 uv_offset = vec2(1, 1) / vec2(tex_size);
@@ -107,6 +109,23 @@ void main() {
         }
 		float factor = pow(2.0, float(n));
         _color.rgb = mean / factor / factor;
+		_color.a = 1.0f;
+    }
+	// Gaussian blur
+    else if (filter_option == 6) {
+		float sigma = kernel_size / 6.0;
+		float sigma2 = 2.0 * sigma * sigma;
+		float denom = 1.0 / (PI * sigma2);
+        vec3 mean = vec3(0.0);
+		float gauss_sum = 0.0;
+        for (float i = -half_size; i <= half_size; i++) {
+            for (float j = -half_size; j <= half_size; j++) {
+				float gauss = denom * exp(-(i * i + j * j) / sigma2);
+                mean += gauss * texture(tex, _uv + uv_offset * vec2(i, j)).rgb;
+				gauss_sum += gauss;
+            }
+        }
+        _color.rgb = mean / gauss_sum;
 		_color.a = 1.0f;
     }
     else {
