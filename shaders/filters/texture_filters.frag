@@ -10,28 +10,32 @@ layout (location = 2) uniform float strength;
 
 layout (location = 0) out vec4 _color;
 
-int factorial(int n) {
-    int result = 1;
-    for (int i = 1; i <= n; i++) {
+float factorial(float n) {
+    float result = 1;
+    for (float i = 1; i <= n; i++) {
         result *= i;
     }
     return result;
 }
 
-int binomial_denom(int n, int k) {
+float binomial_denom(float n, float k) {
     return factorial(k) * factorial(n - k);
 }
 
 void main() {
     ivec2 tex_size = textureSize(tex, 0);
     vec2 uv_offset = vec2(1, 1) / vec2(tex_size);
+	float half_size = (kernel_size - 1) / 2.0;
+	if (kernel_size <= 0) {
+        _color = texture(tex, _uv);
+		return;
+	}
 
     // box blur 1 or unsharp masking 2
-    if ((filter_option == 1 || filter_option == 2) && kernel_size % 2 != 0) {
+    if ((filter_option == 1 || filter_option == 2)) {
         vec4 mean = vec4(0.0);
-        int half_size = kernel_size / 2;
-        for (int i = -half_size; i <= half_size; i++) {
-            for (int j = -half_size; j <= half_size; j++) {
+        for (float i = -half_size; i <= half_size; i++) {
+            for (float j = -half_size; j <= half_size; j++) {
                 mean += texture(tex, _uv + uv_offset * vec2(i, j));
             }
         }
@@ -89,21 +93,21 @@ void main() {
         _color = mid;
     }
     // binomial filter
-    else if (filter_option == 5 && kernel_size % 2 != 0) {
-        int n = kernel_size - 1;
-        int n_factorial = factorial(n);
+    else if (filter_option == 5) {
+        float n = kernel_size - 1.0;
+        float n_factorial = factorial(n);
         vec3 mean = vec3(0.0);
-        int half_size = kernel_size / 2;
-        for (int i = -half_size; i <= half_size; i++) {
-            for (int j = -half_size; j <= half_size; j++) {
-                mean += n_factorial / binomial_denom(n, i + half_size)
-                        * n_factorial / binomial_denom(n, j + half_size)
-                        * texture(tex, _uv + uv_offset * vec2(i, j)).rgb;
+        for (int i = 0; i < kernel_size; i++) {
+            for (int j = 0; j < kernel_size; j++) {
+			vec2 ij = vec2(i, j) - half_size;
+                mean += n_factorial / binomial_denom(n, i)
+                        * n_factorial / binomial_denom(n, j)
+                        * texture(tex, _uv + uv_offset * ij).rgb;
             }
         }
-        float factor = pow(2, n);
+		float factor = pow(2.0, float(n));
         _color.rgb = mean / factor / factor;
-        _color.a = 1.0f;
+		_color.a = 1.0f;
     }
     else {
         _color = texture(tex, _uv);
