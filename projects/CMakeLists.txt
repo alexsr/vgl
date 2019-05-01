@@ -23,3 +23,7 @@ target_link_libraries(example_separated_filters PUBLIC OpenGL::GL glad::glad glf
 add_executable(laplacian_of_gaussian laplacian_of_gaussian/main.cpp)
 target_link_libraries(laplacian_of_gaussian PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
 							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+
+add_executable(moravec moravec/main.cpp)
+target_link_libraries(moravec PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
+							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
