@@ -45,7 +45,7 @@ int main() {
     glTextureParameteri(tex_id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
 
     glm::ivec2 image_size{};
-    auto image_path = (vgl::resources_path / "images/naturo-monkey-selfie.jpg").string();
+    auto image_path = (vgl::resources_path / "images/clifton-house-project.jpg").string();
     stbi_info(image_path.c_str(), &image_size.x, &image_size.y, nullptr);
 
     stbi_set_flip_vertically_on_load(1);

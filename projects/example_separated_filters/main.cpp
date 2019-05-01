@@ -33,11 +33,13 @@ int main() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vgl::shaders_path / "minimal/texture.vert");
-    auto frag_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/separated_first_pass.frag");
+    auto first_pass_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/separated_first_pass.frag");
+    auto second_pass_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/separated_second_pass.frag");
 
-    const auto first_pass = vgl::gl::create_program(vertex_shader, frag_shader);
+    const auto first_pass = vgl::gl::create_program(vertex_shader, first_pass_shader);
+    const auto second_pass = vgl::gl::create_program(vertex_shader, second_pass_shader);
 
-    vgl::gl::delete_shaders(vertex_shader, frag_shader);
+    vgl::gl::delete_shaders(vertex_shader, first_pass_shader, second_pass_shader);
     
     GLuint tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
     glTextureParameteri(tex_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -46,7 +48,7 @@ int main() {
     glTextureParameteri(tex_id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
 
     glm::ivec2 image_size{};
-    auto image_path = (vgl::resources_path / "images/naturo-monkey-selfie.jpg").string();
+    auto image_path = (vgl::resources_path / "images/clifton-house-project.jpg").string();
     stbi_info(image_path.c_str(), &image_size.x, &image_size.y, nullptr);
 
     stbi_set_flip_vertically_on_load(1);
@@ -58,9 +60,18 @@ int main() {
     glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGBA, GL_UNSIGNED_BYTE, ptr.get());
     glBindTextureUnit(0, tex_id);
 
-    GLuint framebuffer = vgl::gl::create_framebuffer();
+    GLuint intermediate_tex = vgl::gl::create_texture(GL_TEXTURE_2D);
+    glTextureParameteri(intermediate_tex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(intermediate_tex, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(intermediate_tex, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+    glTextureParameteri(intermediate_tex, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+    glTextureStorage2D(intermediate_tex, 1, GL_RGBA8, image_size.x, image_size.y);
+    glBindTextureUnit(1, intermediate_tex);
 
-    glUseProgram(first_pass);
+    GLuint framebuffer = vgl::gl::create_framebuffer();
+    glNamedFramebufferTexture(framebuffer, GL_COLOR_ATTACHMENT0, intermediate_tex, 0);
+    vgl::gl::attach_drawbuffers(framebuffer, GL_COLOR_ATTACHMENT0);
+    vgl::gl::check_framebuffer(framebuffer);
 
     auto screen_vao = vgl::gl::create_vertex_array();
 
@@ -79,9 +90,20 @@ int main() {
             ImGui::DragFloat("Strength", &strength, 0.01f, 0.0f, 100.0f);
             glProgramUniform1i(first_pass, 0, kernel_size);
             glProgramUniform1i(first_pass, 1, filter);
-            glProgramUniform1i(first_pass, 2, strength);
+            glProgramUniform1f(first_pass, 2, strength);
+            glProgramUniform1i(second_pass, 0, kernel_size);
+            glProgramUniform1i(second_pass, 1, filter);
+            glProgramUniform1f(second_pass, 2, strength);
         }
         ImGui::End();
+        glUseProgram(first_pass);
+        glViewport(0, 0, image_size.x, image_size.y);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        glBindVertexArray(screen_vao);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glUseProgram(second_pass);
+        glViewport(0, 0, w_res.x, w_res.y);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindVertexArray(screen_vao);
         glDrawArrays(GL_TRIANGLES, 0, 3);
         ImGui::Render();
