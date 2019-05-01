@@ -11,17 +11,7 @@ layout (location = 2) uniform float strength;
 
 layout (location = 0) out vec4 _color;
 
-float factorial(float n) {
-    float result = 1;
-    for (float i = 1; i <= n; i++) {
-        result *= i;
-    }
-    return result;
-}
-
-float binomial_denom(float n, float k) {
-    return factorial(k) * factorial(n - k);
-}
+#include "../include/binomial.glsl"
 
 #define PI 3.1415926535897932384626433832795
 
@@ -34,22 +24,22 @@ void main() {
 		return;
 	}
 
-    // box blur 1 or unsharp masking 2
+    // box blur
     if ((filter_option == 1)) {
         vec3 mean = vec3(0.0);
         for (float i = -half_size; i <= half_size; i++) {
             mean += texture(tex, _uv + uv_offset * vec2(0, i)).rgb;
         }
-        _color.rgb = mean / kernel_size / kernel_size;
+        _color.rgb = mean / kernel_size;
 		_color.a = 1.0f;
     }
     // binomial filter
     else if (filter_option == 2) {
         float n = kernel_size - 1.0;
-        float n_factorial = factorial(n);
         vec3 mean = vec3(0.0);
         for (int i = 0; i < kernel_size; i++) {
-            mean += n_factorial / binomial_denom(n, i)
+            float n_factorial = falling_factorial(n, i);
+            mean += n_factorial / factorial(i)
                     * texture(tex, _uv + uv_offset * vec2(0, i - half_size)).rgb;
         }
 		float factor = pow(2.0, float(n));
