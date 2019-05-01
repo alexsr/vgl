@@ -16,7 +16,7 @@ namespace vgl::gl {
     void attach_drawbuffers(GLuint framebuffer, Args... args) {
         if constexpr (sizeof...(args) != 0) {
             std::vector<GLenum> attachments{static_cast<GLenum>(std::forward<Args>(args))... };
-            glNamedFramebufferDrawBuffers(framebuffer, attachments.size(), attachments.data());
+            glNamedFramebufferDrawBuffers(framebuffer, static_cast<GLsizei>(attachments.size()), attachments.data());
         }
     }
 }
