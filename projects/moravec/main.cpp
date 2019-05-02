@@ -35,7 +35,7 @@ int main() {
     auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vgl::shaders_path / "minimal/texture.vert");
     auto monochrome_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/monochrome.frag");
     auto moravec_min_E_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "corner_detection/moravec_min_E.frag");
-    auto moravec_draw_corner_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "corner_detection/moravec_draw_corner.frag");
+    auto moravec_draw_corner_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "corner_detection/non_max_suppression.frag");
 
     const auto monochrome = vgl::gl::create_program(vertex_shader, monochrome_shader);
     const auto moravec_min_E = vgl::gl::create_program(vertex_shader, moravec_min_E_shader);
