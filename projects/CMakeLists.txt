@@ -27,3 +27,7 @@ target_link_libraries(laplacian_of_gaussian PUBLIC OpenGL::GL glad::glad glfw::g
 add_executable(moravec moravec/main.cpp)
 target_link_libraries(moravec PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
 							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+
+add_executable(harris harris/main.cpp)
+target_link_libraries(harris PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
+							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
