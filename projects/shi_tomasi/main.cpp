@@ -37,7 +37,7 @@ int main() {
     auto sobel_first_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/sobel_xy_first_pass.frag");
     auto sobel_second_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/sobel_xy_second_pass.frag");
     auto shi_tomasi_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "corner_detection/shi_tomasi.frag");
-    auto non_max_suppression_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "corner_detection/non_max_suppression.frag");
+    auto non_max_suppression_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "corner_detection/non_max_suppression_overlay.frag");
 
     const auto monochrome = vgl::gl::create_program(vertex_shader, monochrome_shader);
     const auto sobel_xy_first = vgl::gl::create_program(vertex_shader, sobel_first_shader);
