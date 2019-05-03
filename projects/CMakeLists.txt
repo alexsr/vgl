@@ -39,3 +39,7 @@ target_link_libraries(harris PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::ass
 add_executable(shi_tomasi shi_tomasi/main.cpp)
 target_link_libraries(shi_tomasi PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
 							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+
+add_executable(canny canny/main.cpp)
+target_link_libraries(canny PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
+							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
