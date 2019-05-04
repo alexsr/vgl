@@ -63,12 +63,28 @@ namespace vgl
             return Indirect_elements_command{};
         }
 
+        std::vector<Indirect_elements_command> generate_indirect_elements_cmds(unsigned int size = 0, unsigned int offset = 0) {
+            unsigned int n = std::min(size + offset, static_cast<unsigned int>(objects.size()));
+            if (size == 0) {
+                n = static_cast<unsigned int>(objects.size());
+            }
+            std::vector<Indirect_elements_command> cmds;
+            for (auto i = offset; i < n; i++) {
+                const auto& obj = objects.at(i);
+                cmds.push_back(Indirect_elements_command{ obj.index_count, 1, obj.first_index, obj.first_vertex, 0 });
+            }
+            return cmds;
+        }
+
         std::vector<Indirect_elements_command> generate_indirect_elements_cmds(std::initializer_list<unsigned int> ids) {
             std::vector<Indirect_elements_command> cmds;
             for (auto i : ids) {
                 if (i < objects.size()) {
                     const auto& obj = objects.at(i);
                     cmds.push_back(Indirect_elements_command{ obj.index_count, 1, obj.first_index, obj.first_vertex, 0 });
+                }
+                else {
+                    cmds.push_back(Indirect_elements_command{ 0, 1, 0, 0, 0 });
                 }
             }
             return cmds;

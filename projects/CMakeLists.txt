@@ -12,4 +12,8 @@ add_executable(example_texture example_texture/main.cpp)
 target_link_libraries(example_texture PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
 							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
 
+add_executable(textured_model textured_model/main.cpp)
+target_link_libraries(textured_model PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
+							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+
 add_subdirectory(computer_vision)
