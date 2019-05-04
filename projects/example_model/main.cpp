@@ -119,7 +119,7 @@ int main() {
         }
         void rotate(glm::vec2 angles , float dt) {
             _angles += angles * dt;
-            rotation = glm::normalize(glm::quat(glm::vec3(_angles.y, _angles.x, 0.0f)));
+            rotation = glm::quat(glm::vec3(_angles.y, 0, 0)) * glm::quat(glm::vec3(0, _angles.x, 0));
         }
         void reset() {
             position = glm::vec3 {0.0f, 0.0f, -1.0f};
@@ -127,8 +127,6 @@ int main() {
             _angles = glm::vec3(0.0f);
         }
     } cam;
-    //cam.rotation = glm::quat_cast(cam_mats.view);
-    cam_mats.model = glm::translate(glm::mat4(1.0f), cam.position);
 
     vgl::win::window_handler win_handler(window);
     win_handler.cbs.window_size["resize"] = [](GLFWwindow*, int x, int y) {
