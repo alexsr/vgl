@@ -25,7 +25,8 @@ int main() {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
+    (void) io;
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460");
@@ -33,15 +34,18 @@ int main() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vgl::shaders_path / "minimal/texture.vert");
-    auto monochrome_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/monochrome.frag");
-    auto dog_first_pass_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "blob_detection/dog_first_pass.frag");
-    auto dog_second_pass_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "blob_detection/dog_second_pass.frag");
+    auto monochrome_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/monochrome.frag");
+    auto dog_first_pass_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "blob_detection/dog_first_pass.frag");
+    auto dog_second_pass_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "blob_detection/dog_second_pass.frag");
 
-    const auto monochrome = vgl::gl::create_program(vertex_shader, monochrome_shader);
-    const auto dog_first_pass = vgl::gl::create_program(vertex_shader, dog_first_pass_shader);
-    const auto dog_second_pass = vgl::gl::create_program(vertex_shader, dog_second_pass_shader);
+    const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});
+    const auto dog_first_pass = vgl::gl::create_program({vertex_shader, dog_first_pass_shader});
+    const auto dog_second_pass = vgl::gl::create_program({vertex_shader, dog_second_pass_shader});
 
-    vgl::gl::delete_shaders(vertex_shader, dog_first_pass_shader, dog_second_pass_shader, monochrome_shader);
+    vgl::gl::delete_shaders({vertex_shader, dog_first_pass_shader, dog_second_pass_shader, monochrome_shader});
 
     GLuint tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
     glTextureParameteri(tex_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

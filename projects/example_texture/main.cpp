@@ -24,9 +24,9 @@ int main() {
     auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vgl::shaders_path / "minimal/texture.vert");
     auto frag_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "minimal/texture.frag");
 
-    const auto program = vgl::gl::create_program(vertex_shader, frag_shader);
+    const auto program = vgl::gl::create_program({vertex_shader, frag_shader});
 
-    vgl::gl::delete_shaders(vertex_shader, frag_shader);
+    vgl::gl::delete_shaders({vertex_shader, frag_shader});
 
     GLuint tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
     glTextureParameteri(tex_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

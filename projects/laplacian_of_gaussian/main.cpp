@@ -25,7 +25,8 @@ int main() {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
+    (void) io;
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460");
@@ -33,17 +34,19 @@ int main() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vgl::shaders_path / "minimal/texture.vert");
-    auto monochrome_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/monochrome.frag");
+    auto monochrome_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/monochrome.frag");
     auto gauss_x_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/gauss_x.frag");
     auto gauss_y_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/gauss_y.frag");
-    auto laplacian_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "blob_detection/laplacian_normalized.frag");
+    auto laplacian_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "blob_detection/laplacian_normalized.frag");
 
-    const auto monochrome = vgl::gl::create_program(vertex_shader, monochrome_shader);
-    const auto gauss_x = vgl::gl::create_program(vertex_shader, gauss_x_shader);
-    const auto gauss_y = vgl::gl::create_program(vertex_shader, gauss_y_shader);
-    const auto laplacian = vgl::gl::create_program(vertex_shader, laplacian_shader);
+    const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});
+    const auto gauss_x = vgl::gl::create_program({vertex_shader, gauss_x_shader});
+    const auto gauss_y = vgl::gl::create_program({vertex_shader, gauss_y_shader});
+    const auto laplacian = vgl::gl::create_program({vertex_shader, laplacian_shader});
 
-    vgl::gl::delete_shaders(vertex_shader, monochrome_shader, gauss_x_shader, gauss_y_shader, laplacian_shader);
+    vgl::gl::delete_shaders({vertex_shader, monochrome_shader, gauss_x_shader, gauss_y_shader, laplacian_shader});
 
     GLuint tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
     glTextureParameteri(tex_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

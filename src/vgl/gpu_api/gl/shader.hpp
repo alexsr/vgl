@@ -31,19 +31,22 @@ namespace vgl
             return shader;
         }
 
-        template <typename... Ts>
-        void attach_shaders(GLuint program, Ts ... shaders) {
-            (glAttachShader(program, shaders), ...);
+        void attach_shaders(GLuint program, std::initializer_list<GLuint> shaders) {
+            for (auto s : shaders) {
+                glAttachShader(program, s);
+            }
         }
 
-        template <typename... Ts>
-        void detach_shaders(GLuint program, Ts ... shaders) {
-            (glDetachShader(program, shaders), ...);
+        void detach_shaders(GLuint program, std::initializer_list<GLuint> shaders) {
+            for (auto s : shaders) {
+                glDetachShader(program, s);
+            }
         }
 
-        template <typename... Ts>
-        void delete_shaders(Ts ... shaders) {
-            (glDeleteShader(shaders), ...);
+        void delete_shaders(std::initializer_list<GLuint> shaders) {
+            for (auto s : shaders) {
+                glDeleteShader(s);
+            }
         }
 
         void link_program(GLuint program) {
@@ -65,12 +68,11 @@ namespace vgl
             }
         }
 
-        template <typename... Args>
-        GLuint create_program(Args&& ... shaders) {
+        GLuint create_program(std::initializer_list<GLuint> shaders) {
             const GLuint program = glCreateProgram();
-            attach_shaders(program, shaders...);
+            attach_shaders(program, shaders);
             link_program(program);
-            detach_shaders(program, shaders...);
+            detach_shaders(program, shaders);
             return program;
         }
     }

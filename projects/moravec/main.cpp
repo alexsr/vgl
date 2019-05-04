@@ -25,7 +25,8 @@ int main() {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
+    (void) io;
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460");
@@ -33,16 +34,19 @@ int main() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vgl::shaders_path / "minimal/texture.vert");
-    auto monochrome_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/monochrome.frag");
-    auto moravec_min_E_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "corner_detection/moravec_min_E.frag");
-    auto moravec_draw_corner_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "corner_detection/non_max_suppression_overlay.frag");
+    auto monochrome_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/monochrome.frag");
+    auto moravec_min_E_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "corner_detection/moravec_min_E.frag");
+    auto moravec_draw_corner_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "corner_detection/non_max_suppression_overlay.frag");
 
-    const auto monochrome = vgl::gl::create_program(vertex_shader, monochrome_shader);
-    const auto moravec_min_E = vgl::gl::create_program(vertex_shader, moravec_min_E_shader);
-    const auto moravec_draw_corner = vgl::gl::create_program(vertex_shader, moravec_draw_corner_shader);
+    const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});
+    const auto moravec_min_E = vgl::gl::create_program({vertex_shader, moravec_min_E_shader});
+    const auto moravec_draw_corner = vgl::gl::create_program({vertex_shader, moravec_draw_corner_shader});
 
-    vgl::gl::delete_shaders(vertex_shader, monochrome_shader, moravec_min_E_shader, moravec_draw_corner_shader);
-    
+    vgl::gl::delete_shaders({vertex_shader, monochrome_shader, moravec_min_E_shader, moravec_draw_corner_shader});
+
     GLuint tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
     glTextureParameteri(tex_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(tex_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

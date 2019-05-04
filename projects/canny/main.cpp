@@ -25,7 +25,8 @@ int main() {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
+    (void) io;
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460");
@@ -35,23 +36,30 @@ int main() {
     auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vgl::shaders_path / "minimal/texture.vert");
     auto gauss_x_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/gauss_x.frag");
     auto gauss_y_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/gauss_y.frag");
-    auto monochrome_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/monochrome.frag");
-    auto sobel_first_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/sobel_xy_first_pass.frag");
-    auto sobel_second_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/sobel_xy_angle.frag");
-    auto non_max_suppression_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "edge_detection/canny_non_max_suppression.frag");
-    auto double_threshold_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "edge_detection/canny_double_threshold.frag");
+    auto monochrome_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/monochrome.frag");
+    auto sobel_first_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/sobel_xy_first_pass.frag");
+    auto sobel_second_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/sobel_xy_angle.frag");
+    auto non_max_suppression_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "edge_detection/canny_non_max_suppression.frag");
+    auto double_threshold_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "edge_detection/canny_double_threshold.frag");
 
-    const auto gauss_x = vgl::gl::create_program(vertex_shader, gauss_x_shader);
-    const auto gauss_y = vgl::gl::create_program(vertex_shader, gauss_y_shader);
-    const auto monochrome = vgl::gl::create_program(vertex_shader, monochrome_shader);
-    const auto sobel_xy_first = vgl::gl::create_program(vertex_shader, sobel_first_shader);
-    const auto sobel_xy_second = vgl::gl::create_program(vertex_shader, sobel_second_shader);
-    const auto double_threshold = vgl::gl::create_program(vertex_shader, double_threshold_shader);
-    const auto non_max_suppression = vgl::gl::create_program(vertex_shader, non_max_suppression_shader);
+    const auto gauss_x = vgl::gl::create_program({vertex_shader, gauss_x_shader});
+    const auto gauss_y = vgl::gl::create_program({vertex_shader, gauss_y_shader});
+    const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});
+    const auto sobel_xy_first = vgl::gl::create_program({vertex_shader, sobel_first_shader});
+    const auto sobel_xy_second = vgl::gl::create_program({vertex_shader, sobel_second_shader});
+    const auto double_threshold = vgl::gl::create_program({vertex_shader, double_threshold_shader});
+    const auto non_max_suppression = vgl::gl::create_program({vertex_shader, non_max_suppression_shader});
 
-    vgl::gl::delete_shaders(vertex_shader, monochrome_shader, sobel_first_shader, sobel_second_shader, double_threshold_shader,
-        non_max_suppression_shader, gauss_x_shader, gauss_y_shader);
-    
+    vgl::gl::delete_shaders({
+        vertex_shader, monochrome_shader, sobel_first_shader, sobel_second_shader, double_threshold_shader,
+        non_max_suppression_shader, gauss_x_shader, gauss_y_shader
+    });
+
     GLuint tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
     glTextureParameteri(tex_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(tex_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

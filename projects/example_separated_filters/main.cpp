@@ -25,7 +25,8 @@ int main() {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
+    (void) io;
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460");
@@ -33,14 +34,16 @@ int main() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vgl::shaders_path / "minimal/texture.vert");
-    auto first_pass_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/separated_first_pass.frag");
-    auto second_pass_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/separated_second_pass.frag");
+    auto first_pass_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/separated_first_pass.frag");
+    auto second_pass_shader = vgl::gl::create_shader_spirv(
+        GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/separated_second_pass.frag");
 
-    const auto first_pass = vgl::gl::create_program(vertex_shader, first_pass_shader);
-    const auto second_pass = vgl::gl::create_program(vertex_shader, second_pass_shader);
+    const auto first_pass = vgl::gl::create_program({vertex_shader, first_pass_shader});
+    const auto second_pass = vgl::gl::create_program({vertex_shader, second_pass_shader});
 
-    vgl::gl::delete_shaders(vertex_shader, first_pass_shader, second_pass_shader);
-    
+    vgl::gl::delete_shaders({vertex_shader, first_pass_shader, second_pass_shader});
+
     GLuint tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
     glTextureParameteri(tex_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(tex_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
