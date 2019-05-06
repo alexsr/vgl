@@ -12,6 +12,6 @@ layout (std430, binding = CAM_BINDING) buffer cam_buffer {
 layout (location = 0) out vec4 _position;
 
 void main() {
-    _position = cam.proj * cam.view * cam.model * position;
-    gl_Position = cam.proj * cam.view * cam.model * position;
+    _position = cam.proj * cam.view * position;
+    gl_Position = cam.proj * cam.view * position;
 }

@@ -32,7 +32,6 @@ int main() {
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     struct Cam_mats {
-        glm::mat4 model{};
         glm::mat4 view{};
         glm::mat4 proj{};
     } cam_mats;
@@ -118,7 +117,7 @@ int main() {
                     auto a = mesh.generate_indirect_elements_cmd(0);
                     draw_indirect_buffer = vgl::gl::create_buffer(a);
                     model_vao = vgl::gl::create_vertex_array();
-                    glVertexArrayVertexBuffer(model_vao, 0, model_vbo, 0, vgl::sizeof_value_type(mesh.vertices));
+                    glVertexArrayVertexBuffer(model_vao, 0, model_vbo, 0, static_cast<int>(vgl::sizeof_value_type(mesh.vertices)));
                     glVertexArrayElementBuffer(model_vao, indices_buffer);
                     glEnableVertexArrayAttrib(model_vao, 0);
                     glEnableVertexArrayAttrib(model_vao, 1);
@@ -145,8 +144,7 @@ int main() {
             if (window.key[GLFW_KEY_R]) {
                 cam.reset();
             }
-            cam_mats.view = glm::mat4_cast(cam.rotation);
-            cam_mats.model = glm::translate(glm::mat4(1.0f), cam.position);
+            cam_mats.view = glm::translate(glm::mat4_cast(cam.rotation), cam.position);
             const auto buffer_ptr = glMapNamedBufferRange(cam_ssbo, 0, sizeof(cam_mats),
                                                           GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT);
             std::memcpy(buffer_ptr, &cam_mats, sizeof(cam_mats));

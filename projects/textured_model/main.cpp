@@ -33,7 +33,6 @@ int main() {
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     struct Cam_mats {
-        glm::mat4 model{};
         glm::mat4 view{};
         glm::mat4 proj{};
     } cam_mats;
@@ -147,7 +146,6 @@ int main() {
                 cam.reset();
             }
             cam_mats.view = glm::mat4_cast(cam.rotation);
-            cam_mats.model = glm::translate(glm::mat4(1.0f), cam.position);
             const auto buffer_ptr = glMapNamedBufferRange(cam_ssbo, 0, sizeof(cam_mats),
                                                           GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT);
             std::memcpy(buffer_ptr, &cam_mats, sizeof(cam_mats));

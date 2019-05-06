@@ -2,7 +2,6 @@
 #define CAM_GLSL
 
 struct Camera {
-    mat4 model;
     mat4 view;
     mat4 proj;
 };
