@@ -3,6 +3,7 @@
 #include "glm/glm.hpp"
 #include "assimp/Importer.hpp"
 #include "assimp/scene.h"
+#include "assimp/material.h"
 #include "assimp/postprocess.h"
 #include <vector>
 #include "vgl/file/file.hpp"
@@ -41,20 +42,36 @@ namespace vgl
         int channels{};
     };
 
-    struct Scene_object {
+    struct Tex_material {
+        Texture_info diffuse;
+        Texture_info specular;
+        Texture_info emissive;
+        Texture_info height;
+        Texture_info normal;
+    };
+
+    struct Object_range {
         unsigned int vertex_count{};
         unsigned int first_vertex{};
         unsigned int index_count{};
         unsigned int first_index{};
     };
 
+    struct Scene_object {
+        int material_id = -1;
+        int texture_id = -1;
+    };
+
     struct Scene {
         std::vector<Vertex> vertices;
         std::vector<unsigned int> indices;
+        std::vector<Object_range> object_ranges;
         std::vector<Scene_object> objects;
+        std::vector<Material> materials;
+        std::vector<Tex_material> textures;
 
         void add_mesh(Mesh& m) {
-            objects.push_back(Scene_object{
+            object_ranges.push_back(Object_range{
                 static_cast<unsigned int>(m.vertices.size()),
                 static_cast<unsigned int>(vertices.size()),
                 static_cast<unsigned int>(m.indices.size()),
@@ -67,21 +84,21 @@ namespace vgl
         }
 
         Indirect_elements_command generate_indirect_elements_cmd(unsigned int id) {
-            if (id < objects.size()) {
-                const auto& obj = objects.at(id);
+            if (id < object_ranges.size()) {
+                const auto& obj = object_ranges.at(id);
                 return Indirect_elements_command{ obj.index_count, 1, obj.first_index, obj.first_vertex, 0 };
             }
             return Indirect_elements_command{};
         }
 
         std::vector<Indirect_elements_command> generate_indirect_elements_cmds(unsigned int size = 0, unsigned int offset = 0) {
-            unsigned int n = std::min(size + offset, static_cast<unsigned int>(objects.size()));
+            unsigned int n = std::min(size + offset, static_cast<unsigned int>(object_ranges.size()));
             if (size == 0) {
-                n = static_cast<unsigned int>(objects.size());
+                n = static_cast<unsigned int>(object_ranges.size());
             }
             std::vector<Indirect_elements_command> cmds;
             for (auto i = offset; i < n; i++) {
-                const auto& obj = objects.at(i);
+                const auto& obj = object_ranges.at(i);
                 cmds.push_back(Indirect_elements_command{ obj.index_count, 1, obj.first_index, obj.first_vertex, 0 });
             }
             return cmds;
@@ -90,8 +107,8 @@ namespace vgl
         std::vector<Indirect_elements_command> generate_indirect_elements_cmds(std::initializer_list<unsigned int> ids) {
             std::vector<Indirect_elements_command> cmds;
             for (auto i : ids) {
-                if (i < objects.size()) {
-                    const auto& obj = objects.at(i);
+                if (i < object_ranges.size()) {
+                    const auto& obj = object_ranges.at(i);
                     cmds.push_back(Indirect_elements_command{ obj.index_count, 1, obj.first_index, obj.first_vertex, 0 });
                 }
                 else {
@@ -138,6 +155,21 @@ namespace vgl
         return mesh;
     }
 
+    glm::vec4 to_glm_vec4(const aiColor3D& c) {
+        return glm::vec4(c.r, c.g, c.b, 1.0f);
+    }
+
+    Material process_material(aiMaterial* ai_mat) {
+        Material mat{};
+        ai_mat->Get(AI_MATKEY_COLOR_DIFFUSE, reinterpret_cast<aiColor4D&>(mat.diffuse));
+        ai_mat->Get(AI_MATKEY_COLOR_SPECULAR, reinterpret_cast<aiColor4D&>(mat.specular));
+        ai_mat->Get(AI_MATKEY_COLOR_EMISSIVE, reinterpret_cast<aiColor4D&>(mat.emissive));
+        ai_mat->Get(AI_MATKEY_COLOR_REFLECTIVE, reinterpret_cast<aiColor4D&>(mat.reflective));
+        ai_mat->Get(AI_MATKEY_COLOR_TRANSPARENT, reinterpret_cast<aiColor4D&>(mat.transparent));
+        ai_mat->Get(AI_MATKEY_SHININESS, mat.specular.a);
+        return mat;
+    }
+
     constexpr unsigned int aiprocess_flags = aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality
         | aiProcess_FindDegenerates | aiProcess_FindInvalidData |
         aiProcess_GenSmoothNormals | aiProcess_Triangulate | aiProcess_GenUVCoords;
@@ -171,10 +203,20 @@ namespace vgl
         Assimp::Importer importer;
         const auto ai_scene = importer.ReadFile(file_path.string(),
             aiprocess_flags);
-        auto tex_count = ai_scene->mNumTextures;
         Scene scene{};
+        auto tex_count = ai_scene->mNumTextures;
+        scene.materials.resize(ai_scene->mNumMaterials);
+        for (unsigned int m = 0; m < ai_scene->mNumMaterials; ++m) {
+            scene.materials.at(m) = process_material(ai_scene->mMaterials[m]);
+        }
+        scene.textures.resize(tex_count);
+        scene.objects.resize(ai_scene->mNumMeshes);
         for (unsigned int m = 0; m < ai_scene->mNumMeshes; m++) {
-            auto temp = generate_mesh(ai_scene->mMeshes[m]);
+            auto ai_mesh = ai_scene->mMeshes[m];
+            auto temp = generate_mesh(ai_mesh);
+            if (ai_mesh->mMaterialIndex > 0) {
+                scene.objects.at(m).material_id = ai_mesh->mMaterialIndex;
+            }
             scene.add_mesh(temp);
         }
         return scene;

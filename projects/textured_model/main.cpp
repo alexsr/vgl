@@ -21,7 +21,7 @@ struct Light {
     glm::vec4 color{};
     glm::vec4 dir{};
     float radius{};
-    int type{};
+    int type = 1;
     int pad1, pad2;
 };
 
@@ -115,9 +115,7 @@ int main() {
     vgl::gl::specialize_shaders({ vertex_shader, frag_shader });
 
     const auto program = vgl::gl::create_program({vertex_shader, frag_shader});
-
     vgl::gl::delete_shaders({vertex_shader, frag_shader});
-
 
     auto lights_debug_vs_binary = vgl::load_binary_file_async(vgl::shaders_path / "debug/lights.vert");
     auto lights_debug_fs_binary = vgl::load_binary_file_async(vgl::shaders_path / "debug/lights.frag");
@@ -126,23 +124,24 @@ int main() {
     vgl::gl::specialize_shaders({ lights_debug_vs, lights_debug_fs });
 
     const auto lights_debug = vgl::gl::create_program({ lights_debug_vs, lights_debug_fs });
-
     vgl::gl::delete_shaders({ lights_debug_vs, lights_debug_fs });
 
     GLuint debug_vao = vgl::gl::create_vertex_array();
 
-    vgl::Scene mesh{};
+    vgl::Scene scene{};
     bool mesh_loaded = false;
 
-    std::vector<Light> lights{Light{glm::vec4(0, 0, 0, 1.0), glm::vec4(1.0, 0, 0, 1.0), glm::vec4(0.0), 0.0f, 0, 0, 0}};
+    std::vector<Light> lights{Light{glm::vec4(0, 0, 0, 1.0), glm::vec4(1.0, 0, 0, 1.0), glm::vec4(0.0), 0.0f, 1, 0, 0}};
 
     GLuint model_vbo = 0;
     GLuint indices_buffer = 0;
     GLuint draw_indirect_buffer = 0;
     GLuint model_vao = 0;
+    GLuint material_buffer = 0;
+    GLuint mat_info_buffer = 0;
 
     GLuint lights_ssbo = vgl::gl::create_buffer(lights, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, lights_ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lights_ssbo);
 
     float shininess = 0.5f;
 
@@ -166,15 +165,18 @@ int main() {
             if (ImGui::Button("Load Mesh")) {
                 auto file = vgl::open_file_dialog(vgl::resources_path / "models");
                 if (file) {
-                    mesh = vgl::load_scene(file.value());
+                    scene = vgl::load_scene(file.value());
                     mesh_loaded = true;
-                    model_vbo = vgl::gl::create_buffer(mesh.vertices);
-                    indices_buffer = vgl::gl::create_buffer(mesh.indices);
-                    //vgl::Indirect_elements_command a{mesh.indices.size(), 1, 0, 0, 0};
-                    const auto draw_cmds = mesh.generate_indirect_elements_cmds();
+                    model_vbo = vgl::gl::create_buffer(scene.vertices);
+                    indices_buffer = vgl::gl::create_buffer(scene.indices);
+                    const auto draw_cmds = scene.generate_indirect_elements_cmds();
                     draw_indirect_buffer = vgl::gl::create_buffer(draw_cmds);
+                    material_buffer = vgl::gl::create_buffer(scene.materials);
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, material_buffer);
+                    mat_info_buffer = vgl::gl::create_buffer(scene.objects);
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, mat_info_buffer);
                     model_vao = vgl::gl::create_vertex_array();
-                    glVertexArrayVertexBuffer(model_vao, 0, model_vbo, 0, static_cast<int>(vgl::sizeof_value_type(mesh.vertices)));
+                    glVertexArrayVertexBuffer(model_vao, 0, model_vbo, 0, static_cast<int>(vgl::sizeof_value_type(scene.vertices)));
                     glVertexArrayElementBuffer(model_vao, indices_buffer);
                     glEnableVertexArrayAttrib(model_vao, 0);
                     glEnableVertexArrayAttrib(model_vao, 1);
@@ -226,7 +228,6 @@ int main() {
             }
         }
         if (lights_added_or_removed) {
-            glProgramUniform1i(program, 0, static_cast<int>(lights.size()));
             glDeleteBuffers(1, &lights_ssbo);
             glFinish();
             lights_ssbo = vgl::gl::create_buffer(lights, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
@@ -260,7 +261,7 @@ int main() {
             glBindVertexArray(model_vao);
             glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_indirect_buffer);
             glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
-                                        static_cast<unsigned int>(mesh.objects.size()), 0);
+                                        static_cast<unsigned int>(scene.objects.size()), 0);
             glUseProgram(lights_debug);
             glBindVertexArray(debug_vao);
             glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 4, static_cast<int>(lights.size()), 0);
