@@ -28,12 +28,24 @@ namespace vgl
         std::vector<unsigned int> indices;
     };
 
+    struct Material {
+        glm::vec4 diffuse{};
+        glm::vec4 specular{};
+        glm::vec4 emissive{};
+        glm::vec4 reflective{};
+        glm::vec4 transparent{};
+    };
+
+    struct Texture_info {
+        std::filesystem::path file_path;
+        int channels{};
+    };
+
     struct Scene_object {
         unsigned int vertex_count{};
         unsigned int first_vertex{};
         unsigned int index_count{};
         unsigned int first_index{};
-        glm::mat4 transform{};
     };
 
     struct Scene {
@@ -46,8 +58,7 @@ namespace vgl
                 static_cast<unsigned int>(m.vertices.size()),
                 static_cast<unsigned int>(vertices.size()),
                 static_cast<unsigned int>(m.indices.size()),
-                static_cast<unsigned int>(indices.size()),
-                glm::mat4(1.0f)
+                static_cast<unsigned int>(indices.size())
             });
             std::move(m.indices.begin(), m.indices.end(), std::back_inserter(indices));
             std::move(m.vertices.begin(), m.vertices.end(), std::back_inserter(vertices));
@@ -127,13 +138,28 @@ namespace vgl
         return mesh;
     }
 
+    constexpr unsigned int aiprocess_flags = aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality
+        | aiProcess_FindDegenerates | aiProcess_FindInvalidData |
+        aiProcess_GenSmoothNormals | aiProcess_Triangulate | aiProcess_GenUVCoords;
+
+    Mesh load_mesh(const std::filesystem::path& file_path, const unsigned int id) {
+        Assimp::Importer importer;
+        const auto scene = importer.ReadFile(file_path.string(),
+            aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality
+            | aiProcess_FindDegenerates | aiProcess_FindInvalidData |
+            aiProcess_Triangulate | aiProcess_GenUVCoords);
+        if (id < scene->mNumMeshes) {
+            return generate_mesh(scene->mMeshes[id]);
+        }
+        return {};
+    }
+
     std::vector<Mesh> load_separate_meshes(const std::filesystem::path& file_path) {
         Assimp::Importer importer;
         const auto scene = importer.ReadFile(file_path.string(),
-                                             aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality
-                                             | aiProcess_FindDegenerates | aiProcess_FindInvalidData |
-                                             aiProcess_Triangulate |
-                                             aiProcess_GenUVCoords);
+            aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality
+            | aiProcess_FindDegenerates | aiProcess_FindInvalidData |
+            aiProcess_Triangulate | aiProcess_GenUVCoords);
         std::vector<Mesh> meshes(scene->mNumMeshes);
         for (unsigned int m = 0; m < scene->mNumMeshes; m++) {
             meshes[m] = generate_mesh(scene->mMeshes[m]);
@@ -144,10 +170,8 @@ namespace vgl
     Scene load_scene(const std::filesystem::path& file_path) {
         Assimp::Importer importer;
         const auto ai_scene = importer.ReadFile(file_path.string(),
-                                                aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality
-                                                | aiProcess_FindDegenerates | aiProcess_FindInvalidData |
-                                                aiProcess_Triangulate |
-                                                aiProcess_GenUVCoords);
+            aiprocess_flags);
+        auto tex_count = ai_scene->mNumTextures;
         Scene scene{};
         for (unsigned int m = 0; m < ai_scene->mNumMeshes; m++) {
             auto temp = generate_mesh(ai_scene->mMeshes[m]);

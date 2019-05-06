@@ -6,7 +6,7 @@
 #include "imgui/examples/imgui_impl_opengl3.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/quaternion.hpp"
-#include "vgl/mesh/mesh.hpp"
+#include "vgl/rendering/scene.hpp"
 #include "vgl/file/file.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "vgl/gpu_api/gl/shader.hpp"
