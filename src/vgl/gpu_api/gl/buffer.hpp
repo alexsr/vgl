@@ -35,5 +35,11 @@ namespace vgl
             glCreateBuffers(1, &buffer);
             return buffer;
         }
+
+        void delete_buffer(GLuint buffer) {
+            if (glIsBuffer(buffer)) {
+                glDeleteBuffers(1, &buffer);
+            }
+        }
     }
 }
