@@ -14,7 +14,7 @@ namespace vgl
             GLuint value{};
         };
         GLuint create_shader_spirv(GLenum type, const std::filesystem::path& binary_path) {
-            auto binary = vgl::load_binary_file(binary_path);
+            auto binary = load_binary_file(binary_path);
             GLuint shader = glCreateShader(type);
             glShaderBinary(1, &shader, GL_SHADER_BINARY_FORMAT_SPIR_V, binary.data(), static_cast<int>(binary.size()));
             glSpecializeShader(shader, "main", 0, nullptr, nullptr);
@@ -39,6 +39,10 @@ namespace vgl
             GLuint shader = glCreateShader(type);
             glShaderBinary(1, &shader, GL_SHADER_BINARY_FORMAT_SPIR_V, binary.data(), static_cast<int>(binary.size()));
             return shader;
+        }
+
+        void shader_binary(GLuint shader, const std::vector<std::byte>& binary) {
+            glShaderBinary(1, &shader, GL_SHADER_BINARY_FORMAT_SPIR_V, binary.data(), static_cast<int>(binary.size()));
         }
 
         void specialize_shader(GLuint shader, const std::vector<Specialization_constant>& constants = {}) {
@@ -84,11 +88,21 @@ namespace vgl
             }
         }
 
+        void delete_shader(GLuint shader) {
+            if (glIsShader(shader)) {
+                glDeleteShader(shader);
+            }
+        }
+
         void delete_shaders(std::initializer_list<GLuint> shaders) {
             for (auto s : shaders) {
-                if (glIsShader(s)) {
-                    glDeleteShader(s);
-                }
+                delete_shader(s);
+            }
+        }
+
+        void delete_program(GLuint program) {
+            if (glIsProgram(program)) {
+                glDeleteProgram(program);
             }
         }
 
