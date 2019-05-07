@@ -3,7 +3,13 @@
 
 struct Scene_object {
     int material_id;
-    int texture_id;
+    int texture_diffuse;
+    int texture_specular;
+    int texture_normal;
+    int texture_height;
+    int texture_emissive;
+    int pad1;
+    int pad2;
 };
 
 #endif // SCENE_OBJECT_GLSL

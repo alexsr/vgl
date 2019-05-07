@@ -9,10 +9,11 @@
 #include "vgl/rendering/scene.hpp"
 #include "vgl/file/file.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-#include "vgl/gpu_api/gl/shader.hpp"
 #include "vgl/gpu_api/gl/buffer.hpp"
 #include "vgl/gpu_api/gl/vao.hpp"
 #include <chrono>
+#include "vgl/utility/size_functions.hpp"
+#include "vgl/gpu_api/gl/shader.hpp"
 
 int main() {
     auto w_res = glm::ivec2(1600, 900);
@@ -32,7 +33,8 @@ int main() {
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     struct Cam_mats {
-        glm::mat4 view{};
+        glm::mat4 rotation{};
+        glm::vec4 position{};
         glm::mat4 proj{};
     } cam_mats;
     cam_mats.proj = glm::perspective(glm::radians(60.0f), 16.0f / 9.0f, 0.001f, 100.0f);
@@ -57,6 +59,8 @@ int main() {
             _angles = glm::vec3(0.0f);
         }
     } cam;
+    cam_mats.rotation = glm::mat4_cast(cam.rotation);
+    cam_mats.position = glm::vec4(cam.position, 1.0f);
 
     window.cbs.window_size["resize"] = [](GLFWwindow*, int x, int y) {
         glViewport(0, 0, x, y);
@@ -144,7 +148,8 @@ int main() {
             if (window.key[GLFW_KEY_R]) {
                 cam.reset();
             }
-            cam_mats.view = glm::translate(glm::mat4_cast(cam.rotation), cam.position);
+            cam_mats.rotation = glm::mat4_cast(cam.rotation);
+            cam_mats.position = glm::vec4(cam.position, 1.0f);
             const auto buffer_ptr = glMapNamedBufferRange(cam_ssbo, 0, sizeof(cam_mats),
                                                           GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT);
             std::memcpy(buffer_ptr, &cam_mats, sizeof(cam_mats));

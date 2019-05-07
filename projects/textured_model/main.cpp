@@ -15,6 +15,8 @@
 #include <chrono>
 #include "glm/gtc/type_ptr.hpp"
 #include <random>
+#include "vgl/gpu_api/gl/texture.hpp"
+#include <numeric>
 
 struct Light {
     glm::vec4 pos{};
@@ -74,7 +76,8 @@ int main() {
     ImGui_ImplOpenGL3_Init("#version 460");
 
     struct Cam_mats {
-        glm::mat4 view{};
+        glm::mat4 rotation{};
+        glm::vec4 position{};
         glm::mat4 proj{};
     } cam_mats;
     cam_mats.proj = glm::perspective(glm::radians(60.0f), 16.0f / 9.0f, 0.001f, 100.0f);
@@ -99,7 +102,8 @@ int main() {
             _angles = glm::vec3(0.0f);
         }
     } cam;
-    cam_mats.view = glm::translate(glm::mat4_cast(cam.rotation), cam.position);
+    cam_mats.rotation = glm::mat4_cast(cam.rotation);
+    cam_mats.position = glm::vec4(cam.position, 1.0f);
 
     window.cbs.window_size["resize"] = [](GLFWwindow*, int x, int y) {
         glViewport(0, 0, x, y);
@@ -108,14 +112,15 @@ int main() {
     GLuint cam_ssbo = vgl::gl::create_buffer(cam_mats, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, cam_ssbo);
 
-    auto vs_binary = vgl::load_binary_file_async(vgl::shaders_path / "basic_shading/normal.vert");
-    auto fs_binary = vgl::load_binary_file_async(vgl::shaders_path / "basic_shading/phong.frag");
-    auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vs_binary.get());
-    auto frag_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, fs_binary.get());
-    vgl::gl::specialize_shaders({ vertex_shader, frag_shader });
-
-    const auto program = vgl::gl::create_program({vertex_shader, frag_shader});
-    vgl::gl::delete_shaders({vertex_shader, frag_shader});
+    auto vs_binary_future = vgl::load_binary_file_async(vgl::shaders_path / "basic_shading/phong.vert");
+    auto fs_binary_future = vgl::load_binary_file_async(vgl::shaders_path / "basic_shading/phong.frag");
+    auto vs_binary = vs_binary_future.get();
+    auto fs_binary = fs_binary_future.get();
+    auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vs_binary);
+    auto frag_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, fs_binary);
+    vgl::gl::specialize_shader(vertex_shader);
+    vgl::gl::specialize_shader(frag_shader);
+    auto program = vgl::gl::create_program({ vertex_shader, frag_shader });
 
     auto lights_debug_vs_binary = vgl::load_binary_file_async(vgl::shaders_path / "debug/lights.vert");
     auto lights_debug_fs_binary = vgl::load_binary_file_async(vgl::shaders_path / "debug/lights.frag");
@@ -139,15 +144,13 @@ int main() {
     GLuint model_vao = 0;
     GLuint material_buffer = 0;
     GLuint mat_info_buffer = 0;
+    std::vector<GLuint> textures;
 
     GLuint lights_ssbo = vgl::gl::create_buffer(lights, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lights_ssbo);
 
-    float shininess = 0.5f;
-
-    glProgramUniform1f(program, 0, shininess);
-
     auto screen_vao = vgl::gl::create_vertex_array();
+
     using high_res_clock = std::chrono::high_resolution_clock;
     auto current = high_res_clock::now();
     auto previous = high_res_clock::now();
@@ -165,7 +168,53 @@ int main() {
             if (ImGui::Button("Load Mesh")) {
                 auto file = vgl::open_file_dialog(vgl::resources_path / "models");
                 if (file) {
+                    glDeleteTextures(textures.size(), textures.data());
+                    vgl::gl::delete_buffer(model_vbo);
+                    glFinish();
                     scene = vgl::load_scene(file.value());
+                    textures.resize(scene.textures.size());
+                    for (auto i = 0; i < scene.textures.size(); ++i) {
+                        GLuint tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
+                        textures.at(i) = tex_id;
+                        glTextureParameteri(tex_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                        glTextureParameteri(tex_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                        glTextureParameteri(tex_id, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+                        glTextureParameteri(tex_id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+                        auto image_path = scene.textures.at(i).file_path.string();
+                        glm::ivec2 image_size{};
+                        stbi_info(image_path.c_str(), &image_size.x, &image_size.y, nullptr);
+                        stbi_set_flip_vertically_on_load(1);
+                        auto image_channels = scene.textures.at(i).channels;
+                        auto ptr = std::unique_ptr<stbi_uc>(stbi_load(image_path.c_str(), &image_size.x, &image_size.y,
+                            &image_channels, image_channels));
+                        switch (scene.textures.at(i).channels) {
+                        case 1:
+                            glTextureStorage2D(tex_id, 1, GL_R8, image_size.x, image_size.y);
+                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RED, GL_UNSIGNED_BYTE, ptr.get());
+                            break;
+                        case 2:
+                            glTextureStorage2D(tex_id, 1, GL_RG8, image_size.x, image_size.y);
+                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RG, GL_UNSIGNED_BYTE, ptr.get());
+                            break;
+                        case 3:
+                            glTextureStorage2D(tex_id, 1, GL_RGB8, image_size.x, image_size.y);
+                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGB, GL_UNSIGNED_BYTE, ptr.get());
+                            break;
+                        default:
+                            glTextureStorage2D(tex_id, 1, GL_RGBA8, image_size.x, image_size.y);
+                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGBA, GL_UNSIGNED_BYTE, ptr.get());
+                            break;
+                        }
+                    }
+                    vgl::gl::delete_program(program);
+                    glFinish();
+                    vgl::gl::shader_binary(frag_shader, fs_binary);
+                    vgl::gl::specialize_shader(frag_shader, { vgl::gl::Specialization_constant{0, static_cast<unsigned int>(textures.size())}});
+                    program = vgl::gl::create_program({ vertex_shader, frag_shader });
+                    for (unsigned int t = 0; t < static_cast<unsigned int>(textures.size()); ++t) {
+                        glBindTextureUnit(t, textures.at(t));
+                        glProgramUniform1i(program, t, t);
+                    }
                     mesh_loaded = true;
                     model_vbo = vgl::gl::create_buffer(scene.vertices);
                     indices_buffer = vgl::gl::create_buffer(scene.indices);
@@ -189,8 +238,6 @@ int main() {
                     glVertexArrayAttribBinding(model_vao, 2, 0);
                 }
             }
-            ImGui::DragFloat("Shininess", &shininess, 0.01f);
-            glProgramUniform1f(program, 0, shininess);
             if (ImGui::Button("Add light")) {
                 lights.push_back(Light{});
                 lights_added_or_removed = true;
@@ -251,7 +298,8 @@ int main() {
                 if (window.key[GLFW_KEY_R]) {
                     cam.reset();
                 }
-                cam_mats.view = glm::translate(glm::mat4_cast(cam.rotation), cam.position);
+                cam_mats.rotation = glm::mat4_cast(cam.rotation);
+                cam_mats.position = glm::vec4(cam.position, 1.0f);
                 const auto buffer_ptr = glMapNamedBufferRange(cam_ssbo, 0, sizeof(cam_mats),
                     GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
                 std::memcpy(buffer_ptr, &cam_mats, sizeof(cam_mats));
