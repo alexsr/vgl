@@ -17,7 +17,11 @@
 #include <random>
 #include "vgl/gpu_api/gl/texture.hpp"
 #include <numeric>
-
+// enable optimus!
+using DWORD = uint32_t;
+extern "C" {
+    _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+}
 struct Light {
     glm::vec4 pos{};
     glm::vec4 color{};
@@ -136,7 +140,7 @@ int main() {
     vgl::Scene scene{};
     bool mesh_loaded = false;
 
-    std::vector<Light> lights{Light{glm::vec4(0, 0, 0, 1.0), glm::vec4(1.0, 0, 0, 1.0), glm::vec4(0.0), 0.0f, 1, 0, 0}};
+    std::vector<Light> lights{Light{glm::vec4(0, 0, 0, 1.0), glm::vec4(1.0), glm::vec4(0.0), 0.0f, 1, 0, 0}};
 
     GLuint model_vbo = 0;
     GLuint indices_buffer = 0;
@@ -173,6 +177,21 @@ int main() {
                     glFinish();
                     scene = vgl::load_scene(file.value());
                     textures.resize(scene.textures.size());
+                    struct Tex_def {
+                        stbi_uc* ptr;
+                        glm::ivec2 image_size;
+                    };
+                    std::vector<Tex_def> tex_data(textures.size());
+#pragma omp parallel for
+                    for (int i = 0; i < static_cast<int>(textures.size()); ++i) {
+                        auto image_path = scene.textures.at(i).file_path.string();
+                        stbi_info(image_path.c_str(), &tex_data.at(i).image_size.x, &tex_data.at(i).image_size.y, nullptr);
+                        stbi_set_flip_vertically_on_load(1);
+                        auto image_channels = scene.textures.at(i).channels;
+                        tex_data.at(i).ptr = stbi_load(image_path.c_str(),
+                            &tex_data.at(i).image_size.x, &tex_data.at(i).image_size.y,
+                            &image_channels, image_channels);
+                    }
                     for (auto i = 0; i < scene.textures.size(); ++i) {
                         GLuint tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
                         textures.at(i) = tex_id;
@@ -180,35 +199,30 @@ int main() {
                         glTextureParameteri(tex_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                         glTextureParameteri(tex_id, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
                         glTextureParameteri(tex_id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-                        auto image_path = scene.textures.at(i).file_path.string();
-                        glm::ivec2 image_size{};
-                        stbi_info(image_path.c_str(), &image_size.x, &image_size.y, nullptr);
-                        stbi_set_flip_vertically_on_load(1);
-                        auto image_channels = scene.textures.at(i).channels;
-                        auto ptr = std::unique_ptr<stbi_uc>(stbi_load(image_path.c_str(), &image_size.x, &image_size.y,
-                            &image_channels, image_channels));
+                        auto image_size = tex_data.at(i).image_size;
                         switch (scene.textures.at(i).channels) {
                         case 1:
                             glTextureStorage2D(tex_id, 1, GL_R8, image_size.x, image_size.y);
-                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RED, GL_UNSIGNED_BYTE, ptr.get());
+                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RED, GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
                             break;
                         case 2:
                             glTextureStorage2D(tex_id, 1, GL_RG8, image_size.x, image_size.y);
-                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RG, GL_UNSIGNED_BYTE, ptr.get());
+                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RG, GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
                             break;
                         case 3:
                             glTextureStorage2D(tex_id, 1, GL_RGB8, image_size.x, image_size.y);
-                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGB, GL_UNSIGNED_BYTE, ptr.get());
+                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGB, GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
                             break;
                         default:
                             glTextureStorage2D(tex_id, 1, GL_RGBA8, image_size.x, image_size.y);
-                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGBA, GL_UNSIGNED_BYTE, ptr.get());
+                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGBA, GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
                             break;
                         }
+                        stbi_image_free(tex_data.at(i).ptr);
                     }
                     vgl::gl::delete_program(program);
-                    glFinish();
-                    vgl::gl::shader_binary(frag_shader, fs_binary);
+                    vgl::gl::delete_shader(frag_shader);
+                    frag_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, fs_binary);
                     vgl::gl::specialize_shader(frag_shader, { vgl::gl::Specialization_constant{0, static_cast<unsigned int>(textures.size())}});
                     program = vgl::gl::create_program({ vertex_shader, frag_shader });
                     for (unsigned int t = 0; t < static_cast<unsigned int>(textures.size()); ++t) {
@@ -304,6 +318,9 @@ int main() {
                     GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
                 std::memcpy(buffer_ptr, &cam_mats, sizeof(cam_mats));
                 glUnmapNamedBuffer(cam_ssbo);
+            }
+            for (unsigned int t = 0; t < static_cast<unsigned int>(textures.size()); ++t) {
+                glBindTextureUnit(t, textures.at(t));
             }
             glUseProgram(program);
             glBindVertexArray(model_vao);

@@ -9,6 +9,7 @@
 #include <map>
 #include "vgl/file/file.hpp"
 #include <filesystem>
+#include <set>
 
 namespace vgl
 {
@@ -63,6 +64,10 @@ namespace vgl
         int pad2 = 0;
     };
 
+    bool operator==(const Vertex& v, const glm::vec3& p) {
+        return v.pos == p;
+    }
+
     struct Scene {
         std::vector<Vertex> vertices;
         std::vector<unsigned int> indices;
@@ -78,6 +83,11 @@ namespace vgl
                 static_cast<unsigned int>(m.indices.size()),
                 static_cast<unsigned int>(indices.size())
                 });
+            auto it = std::find(m.vertices.begin(), m.vertices.end(), glm::vec3(0.0));
+            auto i = 0;
+            if (it != m.vertices.end()) {
+                i = 2;
+            }
             std::move(m.indices.begin(), m.indices.end(), std::back_inserter(indices));
             std::move(m.vertices.begin(), m.vertices.end(), std::back_inserter(vertices));
             m.vertices.clear();
@@ -139,6 +149,9 @@ namespace vgl
 
 #pragma omp parallel for
         for (int i = 0; i < static_cast<int>(ai_mesh->mNumFaces); i++) {
+            if (ai_mesh->mFaces->mNumIndices != 3) {
+                continue;
+            }
             mesh.indices[i * 3] = ai_mesh->mFaces[i].mIndices[0];
             mesh.indices[i * 3 + 1] = ai_mesh->mFaces[i].mIndices[1];
             mesh.indices[i * 3 + 2] = ai_mesh->mFaces[i].mIndices[2];
@@ -172,9 +185,9 @@ namespace vgl
         return mat;
     }
 
-    constexpr unsigned int aiprocess_flags = aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality
-        | aiProcess_FindDegenerates | aiProcess_FindInvalidData |
-        aiProcess_GenSmoothNormals | aiProcess_Triangulate | aiProcess_GenUVCoords;
+    constexpr unsigned int aiprocess_flags = aiProcess_ImproveCacheLocality
+        | aiProcess_FindDegenerates | aiProcess_FindInvalidData | aiProcess_RemoveRedundantMaterials |
+        aiProcess_GenSmoothNormals | aiProcess_Triangulate | aiProcess_GenUVCoords | aiProcess_SortByPType;
 
     Mesh load_mesh(const std::filesystem::path& file_path, const unsigned int id) {
         Assimp::Importer importer;
@@ -238,41 +251,41 @@ namespace vgl
             }
             auto ai_mat = ai_scene->mMaterials[m];
             aiString path;
-            ai_mat->Get(AI_MATKEY_TEXTURE_DIFFUSE(0), path);
+            auto ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_DIFFUSE(0), path);
             std::filesystem::path file_path = path_parent / path.C_Str();
-            if (is_file(file_path)) {
+            if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 diffuse_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
                     scene.textures.emplace_back(Texture_info{ file_path, 4 });
                 }
             }
-            ai_mat->Get(AI_MATKEY_TEXTURE_NORMALS(0), path);
+            ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_NORMALS(0), path);
             file_path = path_parent / path.C_Str();
-            if (is_file(file_path)) {
+            if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 normal_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
                     scene.textures.emplace_back(Texture_info{ file_path, 3 });
                 }
             }
-            ai_mat->Get(AI_MATKEY_TEXTURE_SPECULAR(0), path);
+            ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_SPECULAR(0), path);
             file_path = path_parent / path.C_Str();
-            if (is_file(file_path)) {
+            if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 specular_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
                     scene.textures.emplace_back(Texture_info{ file_path, 4 });
                 }
             }
-            ai_mat->Get(AI_MATKEY_TEXTURE_EMISSIVE(0), path);
+            ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_EMISSIVE(0), path);
             file_path = path_parent / path.C_Str();
-            if (is_file(file_path)) {
+            if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 emissive_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
                     scene.textures.emplace_back(Texture_info{ file_path, 4 });
                 }
             }
-            ai_mat->Get(AI_MATKEY_TEXTURE_HEIGHT(0), path);
+            ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_HEIGHT(0), path);
             file_path = path_parent / path.C_Str();
-            if (is_file(file_path)) {
+            if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 height_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
                     scene.textures.emplace_back(Texture_info{ file_path, 1 });
@@ -284,7 +297,7 @@ namespace vgl
         for (unsigned int m = 0; m < ai_scene->mNumMeshes; m++) {
             auto ai_mesh = ai_scene->mMeshes[m];
             auto temp = generate_mesh(ai_mesh);
-            if (ai_mesh->mMaterialIndex > 0) {
+            if (ai_mesh->mMaterialIndex >= 0) {
                 scene.objects.at(m).material_id = ai_mesh->mMaterialIndex;
                 if (names.find(ai_mesh->mMaterialIndex) != names.end()) {
                     auto name = names[ai_mesh->mMaterialIndex];
@@ -307,6 +320,7 @@ namespace vgl
             }
             scene.add_mesh(temp);
         }
+        importer.FreeScene();
         return scene;
     }
 }

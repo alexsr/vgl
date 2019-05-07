@@ -10,9 +10,9 @@ layout (location = 6) in flat int _tex_specular;
 
 layout (location = 0) out vec4 _color;
 
-layout (constant_id = 0) const uint texture_count = 50;
+layout (constant_id = 0) const uint texture_count = gl_MaxCombinedTextureImageUnits - 1;
 
-layout (location = 0) uniform sampler2D textures[texture_count];
+layout (binding = 0) uniform sampler2D textures[texture_count];
 
 #include "../include/light.glsl"
 #include "../include/material.glsl"
@@ -38,13 +38,15 @@ void main() {
         if (texture_count > 0) {
             if (_tex_diffuse != -1) {
                 diffuse_color = texture(textures[_tex_diffuse], _uv);
+                if (diffuse_color.a == 0.0) {
+                    discard;
+                }
             }
             if (_tex_specular != -1) {
-                specular_color = texture(textures[_tex_specular], _uv).rgb;
+                vec4 spec = texture(textures[_tex_specular], _uv);
+                specular_color = spec.rgb;
+                shininess = spec.w;
             }
-        }
-        if (diffuse_color.a == 0.0) {
-            discard;
         }
         vec3 v = normalize(_cam_pos - pos);
         for (int i = 0; i < lights.length(); i++) {
