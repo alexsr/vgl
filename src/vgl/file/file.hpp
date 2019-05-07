@@ -8,6 +8,15 @@
 
 namespace vgl
 {
+    bool is_file(const std::filesystem::path& path) {
+        return exists(path) && !is_directory(path);
+    }
+
+    bool is_file(const char* path) {
+        auto temp = std::filesystem::path(path);
+        return exists(temp) && !is_directory(temp);
+    }
+
     std::optional<std::filesystem::path> open_file_dialog(std::filesystem::path default_path,
         const std::string& filter = "") {
         nfdchar_t* res = nullptr;
