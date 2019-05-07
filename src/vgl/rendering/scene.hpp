@@ -6,7 +6,9 @@
 #include "assimp/material.h"
 #include "assimp/postprocess.h"
 #include <vector>
+#include <map>
 #include "vgl/file/file.hpp"
+#include <filesystem>
 
 namespace vgl
 {
@@ -30,24 +32,17 @@ namespace vgl
     };
 
     struct Material {
-        glm::vec4 diffuse{};
-        glm::vec4 specular{};
-        glm::vec4 emissive{};
-        glm::vec4 reflective{};
-        glm::vec4 transparent{};
+        glm::vec4 ambient{ 1.0f };
+        glm::vec4 diffuse{ 1.0f };
+        glm::vec4 specular{ 0.0f };
+        glm::vec4 emissive{ 0.0f };
+        glm::vec4 reflective{ 0.0f };
+        glm::vec4 transparent{ 0.0f };
     };
 
     struct Texture_info {
         std::filesystem::path file_path;
         int channels{};
-    };
-
-    struct Tex_material {
-        Texture_info diffuse;
-        Texture_info specular;
-        Texture_info emissive;
-        Texture_info height;
-        Texture_info normal;
     };
 
     struct Object_range {
@@ -59,7 +54,13 @@ namespace vgl
 
     struct Scene_object {
         int material_id = -1;
-        int texture_id = -1;
+        int texture_diffuse = -1;
+        int texture_specular = -1;
+        int texture_normal = -1;
+        int texture_height = -1;
+        int texture_emissive = -1;
+        int pad1 = 0;
+        int pad2 = 0;
     };
 
     struct Scene {
@@ -68,7 +69,7 @@ namespace vgl
         std::vector<Object_range> object_ranges;
         std::vector<Scene_object> objects;
         std::vector<Material> materials;
-        std::vector<Tex_material> textures;
+        std::vector<Texture_info> textures;
 
         void add_mesh(Mesh& m) {
             object_ranges.push_back(Object_range{
@@ -76,7 +77,7 @@ namespace vgl
                 static_cast<unsigned int>(vertices.size()),
                 static_cast<unsigned int>(m.indices.size()),
                 static_cast<unsigned int>(indices.size())
-            });
+                });
             std::move(m.indices.begin(), m.indices.end(), std::back_inserter(indices));
             std::move(m.vertices.begin(), m.vertices.end(), std::back_inserter(vertices));
             m.vertices.clear();
@@ -161,6 +162,7 @@ namespace vgl
 
     Material process_material(aiMaterial* ai_mat) {
         Material mat{};
+        ai_mat->Get(AI_MATKEY_COLOR_AMBIENT, reinterpret_cast<aiColor4D&>(mat.ambient));
         ai_mat->Get(AI_MATKEY_COLOR_DIFFUSE, reinterpret_cast<aiColor4D&>(mat.diffuse));
         ai_mat->Get(AI_MATKEY_COLOR_SPECULAR, reinterpret_cast<aiColor4D&>(mat.specular));
         ai_mat->Get(AI_MATKEY_COLOR_EMISSIVE, reinterpret_cast<aiColor4D&>(mat.emissive));
@@ -204,18 +206,104 @@ namespace vgl
         const auto ai_scene = importer.ReadFile(file_path.string(),
             aiprocess_flags);
         Scene scene{};
+        auto path_parent = file_path.parent_path();
         auto tex_count = ai_scene->mNumTextures;
         scene.materials.resize(ai_scene->mNumMaterials);
+        std::map<unsigned int, std::string> names;
+#pragma omp parallel for
         for (unsigned int m = 0; m < ai_scene->mNumMaterials; ++m) {
-            scene.materials.at(m) = process_material(ai_scene->mMaterials[m]);
+            auto ai_mat = ai_scene->mMaterials[m];
+            scene.materials.at(m) = process_material(ai_mat);
+            aiString ai_name;
+            auto r = ai_mat->Get(AI_MATKEY_NAME, ai_name);
+            if (r != AI_SUCCESS) {
+                continue;
+            }
+            std::string name(ai_name.C_Str());
+            names[m] = name;
         }
-        scene.textures.resize(tex_count);
+        std::map<std::string, size_t> texture_map;
+        std::map<std::string, std::string> diffuse_map;
+        std::map<std::string, std::string> normal_map;
+        std::map<std::string, std::string> specular_map;
+        std::map<std::string, std::string> emissive_map;
+        std::map<std::string, std::string> height_map;
+        for (unsigned int m = 0; m < ai_scene->mNumMaterials; ++m) {
+            std::string name;
+            if (names.find(m) != names.end()) {
+                name = names[m];
+            }
+            else {
+                continue;
+            }
+            auto ai_mat = ai_scene->mMaterials[m];
+            aiString path;
+            ai_mat->Get(AI_MATKEY_TEXTURE_DIFFUSE(0), path);
+            std::filesystem::path file_path = path_parent / path.C_Str();
+            if (is_file(file_path)) {
+                diffuse_map[name] = path.C_Str();
+                if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
+                    scene.textures.emplace_back(Texture_info{ file_path, 4 });
+                }
+            }
+            ai_mat->Get(AI_MATKEY_TEXTURE_NORMALS(0), path);
+            file_path = path_parent / path.C_Str();
+            if (is_file(file_path)) {
+                normal_map[name] = path.C_Str();
+                if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
+                    scene.textures.emplace_back(Texture_info{ file_path, 3 });
+                }
+            }
+            ai_mat->Get(AI_MATKEY_TEXTURE_SPECULAR(0), path);
+            file_path = path_parent / path.C_Str();
+            if (is_file(file_path)) {
+                specular_map[name] = path.C_Str();
+                if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
+                    scene.textures.emplace_back(Texture_info{ file_path, 4 });
+                }
+            }
+            ai_mat->Get(AI_MATKEY_TEXTURE_EMISSIVE(0), path);
+            file_path = path_parent / path.C_Str();
+            if (is_file(file_path)) {
+                emissive_map[name] = path.C_Str();
+                if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
+                    scene.textures.emplace_back(Texture_info{ file_path, 4 });
+                }
+            }
+            ai_mat->Get(AI_MATKEY_TEXTURE_HEIGHT(0), path);
+            file_path = path_parent / path.C_Str();
+            if (is_file(file_path)) {
+                height_map[name] = path.C_Str();
+                if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
+                    scene.textures.emplace_back(Texture_info{ file_path, 1 });
+                }
+            }
+        }
+
         scene.objects.resize(ai_scene->mNumMeshes);
         for (unsigned int m = 0; m < ai_scene->mNumMeshes; m++) {
             auto ai_mesh = ai_scene->mMeshes[m];
             auto temp = generate_mesh(ai_mesh);
             if (ai_mesh->mMaterialIndex > 0) {
                 scene.objects.at(m).material_id = ai_mesh->mMaterialIndex;
+                if (names.find(ai_mesh->mMaterialIndex) != names.end()) {
+                    auto name = names[ai_mesh->mMaterialIndex];
+                    if (diffuse_map.find(name) != diffuse_map.end()) {
+                        scene.objects.at(m).texture_diffuse = static_cast<int>(texture_map[diffuse_map[name]]);
+                    }
+                    if (normal_map.find(name) != normal_map.end()) {
+                        scene.objects.at(m).texture_normal = static_cast<int>(texture_map[normal_map[name]]);
+                    }
+                    if (specular_map.find(name) != specular_map.end()) {
+                        scene.objects.at(m).texture_specular = static_cast<int>(texture_map[specular_map[name]]);
+                    }
+                    if (emissive_map.find(name) != emissive_map.end()) {
+                        scene.objects.at(m).texture_emissive = static_cast<int>(texture_map[emissive_map[name]]);
+                    }
+                    if (height_map.find(name) != height_map.end()) {
+                        scene.objects.at(m).texture_height = static_cast<int>(texture_map[height_map[name]]);
+                    }
+                }
             }
             scene.add_mesh(temp);
         }
