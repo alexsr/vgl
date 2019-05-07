@@ -39,13 +39,12 @@ void main() {
             if (_tex_diffuse != -1) {
                 diffuse_color = texture(textures[_tex_diffuse], _uv);
                 if (diffuse_color.a == 0.0) {
-                    discard;
+                    diffuse_color = materials[_mat_id].diffuse;
                 }
             }
             if (_tex_specular != -1) {
                 vec4 spec = texture(textures[_tex_specular], _uv);
                 specular_color = spec.rgb;
-                shininess = spec.w;
             }
         }
         vec3 v = normalize(_cam_pos - pos);

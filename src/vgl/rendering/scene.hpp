@@ -75,6 +75,8 @@ namespace vgl
         std::vector<Scene_object> objects;
         std::vector<Material> materials;
         std::vector<Texture_info> textures;
+        std::vector<std::vector<int>> split_textures;
+        std::vector<unsigned int> split_objects;
 
         void add_mesh(Mesh& m) {
             object_ranges.push_back(Object_range{
@@ -128,6 +130,23 @@ namespace vgl
             }
             return cmds;
         }
+
+        std::vector<std::vector<Indirect_elements_command>> generate_split_indirect_elements_cmds() {
+            std::vector<std::vector<Indirect_elements_command>> split_cmds(split_objects.size());
+            for (unsigned int i = 0; i < split_objects.size(); i++) {
+                unsigned int end = objects.size();
+                if (i < split_objects.size() - 1) {
+                    end = split_objects.at(i + 1);
+                }
+                std::vector<Indirect_elements_command> cmds(end - split_objects.at(i));
+                for (auto j = 0; j < cmds.size(); ++j) {
+                    const auto& obj = object_ranges.at(split_objects.at(i) + j);
+                    cmds.at(j) = Indirect_elements_command{ obj.index_count, 1, obj.first_index, obj.first_vertex, 0 };
+                }
+                split_cmds.at(i) = cmds;
+            }
+            return split_cmds;
+        }
     };
 
     glm::vec2 to_glm_vec2(const aiVector3D& v) {
@@ -147,7 +166,6 @@ namespace vgl
         mesh.vertices.resize(ai_mesh->mNumVertices);
         mesh.indices.resize(ai_mesh->mNumFaces * 3);
 
-#pragma omp parallel for
         for (int i = 0; i < static_cast<int>(ai_mesh->mNumFaces); i++) {
             if (ai_mesh->mFaces->mNumIndices != 3) {
                 continue;
@@ -214,13 +232,12 @@ namespace vgl
         return meshes;
     }
 
-    Scene load_scene(const std::filesystem::path& file_path) {
+    Scene load_scene(const std::filesystem::path& file_path, unsigned int max_tex_count = 0) {
         Assimp::Importer importer;
         const auto ai_scene = importer.ReadFile(file_path.string(),
             aiprocess_flags);
         Scene scene{};
         auto path_parent = file_path.parent_path();
-        auto tex_count = ai_scene->mNumTextures;
         scene.materials.resize(ai_scene->mNumMaterials);
         std::map<unsigned int, std::string> names;
 #pragma omp parallel for
@@ -252,73 +269,173 @@ namespace vgl
             auto ai_mat = ai_scene->mMaterials[m];
             aiString path;
             auto ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_DIFFUSE(0), path);
-            std::filesystem::path file_path = path_parent / path.C_Str();
-            if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
+            std::filesystem::path tex_path = path_parent / path.C_Str();
+            if (ai_tex_available == AI_SUCCESS && is_file(tex_path)) {
                 diffuse_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ file_path, 4 });
+                    scene.textures.emplace_back(Texture_info{ tex_path, 4 });
                 }
             }
-            ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_NORMALS(0), path);
-            file_path = path_parent / path.C_Str();
-            if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
+            /*ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_NORMALS(0), path);
+            tex_path = path_parent / path.C_Str();
+            if (ai_tex_available == AI_SUCCESS && is_file(tex_path)) {
                 normal_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ file_path, 3 });
+                    scene.textures.emplace_back(Texture_info{ tex_path, 3 });
                 }
             }
             ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_SPECULAR(0), path);
-            file_path = path_parent / path.C_Str();
-            if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
+            tex_path = path_parent / path.C_Str();
+            if (ai_tex_available == AI_SUCCESS && is_file(tex_path)) {
                 specular_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ file_path, 4 });
+                    scene.textures.emplace_back(Texture_info{ tex_path, 4 });
                 }
             }
             ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_EMISSIVE(0), path);
-            file_path = path_parent / path.C_Str();
-            if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
+            tex_path = path_parent / path.C_Str();
+            if (ai_tex_available == AI_SUCCESS && is_file(tex_path)) {
                 emissive_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ file_path, 4 });
+                    scene.textures.emplace_back(Texture_info{ tex_path, 4 });
                 }
             }
             ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_HEIGHT(0), path);
-            file_path = path_parent / path.C_Str();
-            if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
+            tex_path = path_parent / path.C_Str();
+            if (ai_tex_available == AI_SUCCESS && is_file(tex_path)) {
                 height_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ file_path, 1 });
+                    scene.textures.emplace_back(Texture_info{ tex_path, 1 });
                 }
-            }
+            }*/
         }
 
         scene.objects.resize(ai_scene->mNumMeshes);
-        for (unsigned int m = 0; m < ai_scene->mNumMeshes; m++) {
-            auto ai_mesh = ai_scene->mMeshes[m];
-            auto temp = generate_mesh(ai_mesh);
-            if (ai_mesh->mMaterialIndex >= 0) {
-                scene.objects.at(m).material_id = ai_mesh->mMaterialIndex;
+        if (max_tex_count == 0) {
+            for (unsigned int m = 0; m < ai_scene->mNumMeshes; m++) {
+                auto ai_mesh = ai_scene->mMeshes[m];
+                auto temp = generate_mesh(ai_mesh);
+                if (ai_mesh->mMaterialIndex >= 0) {
+                    scene.objects.at(m).material_id = static_cast<int>(ai_mesh->mMaterialIndex);
+                    if (names.find(ai_mesh->mMaterialIndex) != names.end()) {
+                        auto name = names[ai_mesh->mMaterialIndex];
+                        if (diffuse_map.find(name) != diffuse_map.end()) {
+                            scene.objects.at(m).texture_diffuse = static_cast<int>(texture_map[diffuse_map[name]]);
+                        }
+                        if (normal_map.find(name) != normal_map.end()) {
+                            scene.objects.at(m).texture_normal = static_cast<int>(texture_map[normal_map[name]]);
+                        }
+                        if (specular_map.find(name) != specular_map.end()) {
+                            scene.objects.at(m).texture_specular = static_cast<int>(texture_map[specular_map[name]]);
+                        }
+                        if (emissive_map.find(name) != emissive_map.end()) {
+                            scene.objects.at(m).texture_emissive = static_cast<int>(texture_map[emissive_map[name]]);
+                        }
+                        if (height_map.find(name) != height_map.end()) {
+                            scene.objects.at(m).texture_height = static_cast<int>(texture_map[height_map[name]]);
+                        }
+                    }
+                }
+                scene.add_mesh(temp);
+            }
+        }
+        else {
+            int curr_tex_id = 0;
+            int tex_count = 0;
+            int curr_tex_count = 0;
+            int obj_id = 0;
+            std::map<std::string, unsigned int> texture_set;
+            std::vector<int> split_textures;
+            for (unsigned int m = 0; m < ai_scene->mNumMeshes; m++) {
+                auto ai_mesh = ai_scene->mMeshes[m];
+                auto temp = generate_mesh(ai_mesh);
+                scene.objects.at(m).material_id = static_cast<int>(ai_mesh->mMaterialIndex);
+                if (tex_count + curr_tex_count > static_cast<int>(max_tex_count) - 6) {
+                    scene.split_textures.push_back(split_textures);
+                    split_textures.clear();
+                    scene.split_objects.push_back(obj_id);
+                    obj_id = static_cast<int>(m);
+                    texture_set.clear();
+                    tex_count = 0;
+                    curr_tex_id = 0;
+                }
+                else {
+                    tex_count += curr_tex_count;
+                }
+                curr_tex_count = 0;
                 if (names.find(ai_mesh->mMaterialIndex) != names.end()) {
                     auto name = names[ai_mesh->mMaterialIndex];
                     if (diffuse_map.find(name) != diffuse_map.end()) {
-                        scene.objects.at(m).texture_diffuse = static_cast<int>(texture_map[diffuse_map[name]]);
+                        //scene.objects.at(m).texture_diffuse = static_cast<int>(texture_map[diffuse_map[name]]);
+                        if (texture_set.find(diffuse_map[name]) == texture_set.end()) {
+                            texture_set.emplace(diffuse_map[name], curr_tex_id);
+                            split_textures.push_back(static_cast<int>(texture_map[diffuse_map[name]]));
+                            scene.objects.at(m).texture_diffuse = curr_tex_id;
+                            curr_tex_id++;
+                            curr_tex_count++;
+                        }
+                        else {
+                            scene.objects.at(m).texture_diffuse = texture_set[diffuse_map[name]];
+
+                        }
                     }
                     if (normal_map.find(name) != normal_map.end()) {
-                        scene.objects.at(m).texture_normal = static_cast<int>(texture_map[normal_map[name]]);
+                        //scene.objects.at(m).texture_normal = static_cast<int>(texture_map[normal_map[name]]);
+                        if (texture_set.find(normal_map[name]) == texture_set.end()) {
+                            texture_set.emplace(normal_map[name], curr_tex_id);
+                            split_textures.push_back(static_cast<int>(texture_map[normal_map[name]]));
+                            scene.objects.at(m).texture_normal = curr_tex_id;
+                            curr_tex_id++;
+                            curr_tex_count++;
+                        }
+                        else {
+                            scene.objects.at(m).texture_normal = texture_set[normal_map[name]];
+                        }
                     }
                     if (specular_map.find(name) != specular_map.end()) {
-                        scene.objects.at(m).texture_specular = static_cast<int>(texture_map[specular_map[name]]);
+                        //scene.objects.at(m).texture_specular = static_cast<int>(texture_map[specular_map[name]]);
+                        if (texture_set.find(specular_map[name]) == texture_set.end()) {
+                            texture_set.emplace(specular_map[name], curr_tex_id);
+                            split_textures.push_back(static_cast<int>(texture_map[specular_map[name]]));
+                            scene.objects.at(m).texture_specular = curr_tex_id;
+                            curr_tex_id++;
+                            curr_tex_count++;
+                        }
+                        else {
+                            scene.objects.at(m).texture_specular = texture_set[specular_map[name]];
+                        }
                     }
                     if (emissive_map.find(name) != emissive_map.end()) {
-                        scene.objects.at(m).texture_emissive = static_cast<int>(texture_map[emissive_map[name]]);
+                        //scene.objects.at(m).texture_emissive = static_cast<int>(texture_map[emissive_map[name]]);
+                        if (texture_set.find(emissive_map[name]) == texture_set.end()) {
+                            texture_set.emplace(emissive_map[name], curr_tex_id);
+                            split_textures.push_back(static_cast<int>(texture_map[emissive_map[name]]));
+                            scene.objects.at(m).texture_emissive = curr_tex_id;
+                            curr_tex_id++;
+                            curr_tex_count++;
+                        }
+                        else {
+                            scene.objects.at(m).texture_emissive = texture_set[emissive_map[name]];
+                        }
                     }
                     if (height_map.find(name) != height_map.end()) {
-                        scene.objects.at(m).texture_height = static_cast<int>(texture_map[height_map[name]]);
+                        //scene.objects.at(m).texture_height = static_cast<int>(texture_map[height_map[name]]);
+                        if (texture_set.find(height_map[name]) == texture_set.end()) {
+                            texture_set.emplace(height_map[name], curr_tex_id);
+                            split_textures.push_back(static_cast<int>(texture_map[height_map[name]]));
+                            scene.objects.at(m).texture_height = curr_tex_id;
+                            curr_tex_id++;
+                            curr_tex_count++;
+                        }
+                        else {
+                            scene.objects.at(m).texture_height = texture_set[height_map[name]];
+                        }
                     }
                 }
+                scene.add_mesh(temp);
             }
-            scene.add_mesh(temp);
+            scene.split_objects.push_back(obj_id);
+            scene.split_textures.push_back(split_textures);
         }
         importer.FreeScene();
         return scene;

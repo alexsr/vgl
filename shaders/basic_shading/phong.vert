@@ -16,6 +16,8 @@ layout (std430, binding = SCENE_OBJECT_BINDING) buffer scene_object_buffer {
     Scene_object objects[];
 };
 
+layout (location = gl_MaxCombinedTextureImageUnits) uniform int offset;
+
 layout (location = 0) out vec3 _position;
 layout (location = 1) out vec3 _normal;
 layout (location = 2) out vec2 _uv;
@@ -25,12 +27,13 @@ layout (location = 5) out flat int _tex_diffuse;
 layout (location = 6) out flat int _tex_specular;
 
 void main() {
-    _position = 0.001 * position;
+    _position = position;
     _cam_pos = cam.position;
     _normal = normal;
     _uv = uv;
-    _mat_id = objects[gl_DrawID].material_id;
-    _tex_diffuse = objects[gl_DrawID].texture_diffuse;
-    _tex_specular = objects[gl_DrawID].texture_specular;
+    int draw_id = offset + gl_DrawID;
+    _mat_id = objects[draw_id].material_id;
+    _tex_diffuse = objects[draw_id].texture_diffuse;
+    _tex_specular = objects[draw_id].texture_specular;
     gl_Position = cam.proj * vec4(cam.rotation * (cam.position + _position), 1.0);
 }

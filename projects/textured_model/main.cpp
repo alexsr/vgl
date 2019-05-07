@@ -139,6 +139,7 @@ int main() {
 
     vgl::Scene scene{};
     bool mesh_loaded = false;
+    bool split = false;
 
     std::vector<Light> lights{Light{glm::vec4(0, 0, 0, 1.0), glm::vec4(1.0), glm::vec4(0.0), 0.0f, 1, 0, 0}};
 
@@ -149,11 +150,12 @@ int main() {
     GLuint material_buffer = 0;
     GLuint mat_info_buffer = 0;
     std::vector<GLuint> textures;
+    std::vector<std::vector<vgl::Indirect_elements_command>> split_cmds;
 
     GLuint lights_ssbo = vgl::gl::create_buffer(lights, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lights_ssbo);
 
-    auto screen_vao = vgl::gl::create_vertex_array();
+    //auto screen_vao = vgl::gl::create_vertex_array();
 
     using high_res_clock = std::chrono::high_resolution_clock;
     auto current = high_res_clock::now();
@@ -169,13 +171,23 @@ int main() {
         ImGui::NewFrame();
         bool lights_added_or_removed = false;
         if (ImGui::Begin("Settings")) {
+            ImGui::Checkbox("Mesh splitting", &split);
             if (ImGui::Button("Load Mesh")) {
                 auto file = vgl::open_file_dialog(vgl::resources_path / "models");
                 if (file) {
                     glDeleteTextures(textures.size(), textures.data());
                     vgl::gl::delete_buffer(model_vbo);
+                    vgl::gl::delete_buffer(indices_buffer);
+                    vgl::gl::delete_buffer(material_buffer);
+                    vgl::gl::delete_buffer(mat_info_buffer);
+                    vgl::gl::delete_buffer(draw_indirect_buffer);
+                    vgl::gl::delete_vertex_array(model_vao);
                     glFinish();
-                    scene = vgl::load_scene(file.value());
+                    int max_tex_count = 0;
+                    if (split) {
+                        max_tex_count = 60;
+                    }
+                    scene = vgl::load_scene(file.value(), max_tex_count);
                     textures.resize(scene.textures.size());
                     struct Tex_def {
                         stbi_uc* ptr;
@@ -190,7 +202,7 @@ int main() {
                         auto image_channels = scene.textures.at(i).channels;
                         tex_data.at(i).ptr = stbi_load(image_path.c_str(),
                             &tex_data.at(i).image_size.x, &tex_data.at(i).image_size.y,
-                            &image_channels, image_channels);
+                            &image_channels, scene.textures.at(i).channels);
                     }
                     for (auto i = 0; i < scene.textures.size(); ++i) {
                         GLuint tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
@@ -225,15 +237,21 @@ int main() {
                     frag_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, fs_binary);
                     vgl::gl::specialize_shader(frag_shader, { vgl::gl::Specialization_constant{0, static_cast<unsigned int>(textures.size())}});
                     program = vgl::gl::create_program({ vertex_shader, frag_shader });
-                    for (unsigned int t = 0; t < static_cast<unsigned int>(textures.size()); ++t) {
-                        glBindTextureUnit(t, textures.at(t));
-                        glProgramUniform1i(program, t, t);
-                    }
                     mesh_loaded = true;
                     model_vbo = vgl::gl::create_buffer(scene.vertices);
                     indices_buffer = vgl::gl::create_buffer(scene.indices);
-                    const auto draw_cmds = scene.generate_indirect_elements_cmds();
-                    draw_indirect_buffer = vgl::gl::create_buffer(draw_cmds);
+                    if (!split) {
+                        split_cmds.clear();
+                        const auto draw_cmds = scene.generate_indirect_elements_cmds();
+                        draw_indirect_buffer = vgl::gl::create_buffer(draw_cmds);
+                        for (unsigned int t = 0; t < static_cast<unsigned int>(textures.size()); ++t) {
+                            glBindTextureUnit(t, textures.at(t));
+                            glProgramUniform1i(program, t, t);
+                        }
+                    }
+                    else {
+                        split_cmds = scene.generate_split_indirect_elements_cmds();
+                    }
                     material_buffer = vgl::gl::create_buffer(scene.materials);
                     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, material_buffer);
                     mat_info_buffer = vgl::gl::create_buffer(scene.objects);
@@ -319,14 +337,28 @@ int main() {
                 std::memcpy(buffer_ptr, &cam_mats, sizeof(cam_mats));
                 glUnmapNamedBuffer(cam_ssbo);
             }
-            for (unsigned int t = 0; t < static_cast<unsigned int>(textures.size()); ++t) {
-                glBindTextureUnit(t, textures.at(t));
-            }
             glUseProgram(program);
             glBindVertexArray(model_vao);
-            glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_indirect_buffer);
-            glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
-                                        static_cast<unsigned int>(scene.objects.size()), 0);
+            if (!split) {
+                for (unsigned int t = 0; t < static_cast<unsigned int>(textures.size()); ++t) {
+                    glBindTextureUnit(t, textures.at(t));
+                }
+                glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_indirect_buffer);
+                glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
+                    static_cast<unsigned int>(scene.objects.size()), 0);
+            }
+            else {
+                for (unsigned int i = 0; i < split_cmds.size(); ++i) {
+                    for (unsigned int t = 0; t < static_cast<unsigned int>(scene.split_textures.at(i).size()); ++t) {
+                        glBindTextureUnit(t, textures.at(scene.split_textures.at(i).at(t)));
+                        glProgramUniform1i(program, t, t);
+                    }
+                    int offset = scene.split_objects.at(i);
+                    glProgramUniform1i(program, glGetUniformLocation(program, "offset"), offset);
+                    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, split_cmds.at(i).data(),
+                        static_cast<unsigned int>(split_cmds.at(i).size()), 0);
+                }
+            }
             glUseProgram(lights_debug);
             glBindVertexArray(debug_vao);
             glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 4, static_cast<int>(lights.size()), 0);
