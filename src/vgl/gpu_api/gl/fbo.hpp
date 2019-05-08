@@ -1,5 +1,7 @@
 #pragma once
 
+#include "glad/glad.h"
+
 namespace vgl::gl {
 
     void check_framebuffer(GLuint framebuffer) {
@@ -7,16 +9,20 @@ namespace vgl::gl {
             throw std::runtime_error{ "Framebuffer " + std::to_string(framebuffer) + " was not created." };
         }
     }
+
     GLuint create_framebuffer() {
         GLuint framebuffer = 0;
         glCreateFramebuffers(1, &framebuffer);
         return framebuffer;
     }
-    template <typename... Args>
-    void attach_drawbuffers(GLuint framebuffer, Args... args) {
-        if constexpr (sizeof...(args) != 0) {
-            std::vector<GLenum> attachments{static_cast<GLenum>(std::forward<Args>(args))... };
-            glNamedFramebufferDrawBuffers(framebuffer, static_cast<GLsizei>(attachments.size()), attachments.data());
+
+    void delete_framebuffer(GLuint fb) {
+        if (glIsFramebuffer(fb)) {
+            glDeleteFramebuffers(1, &fb);
         }
+    }
+
+    void attach_drawbuffers(GLuint framebuffer, std::initializer_list<GLenum> attachments) {
+        glNamedFramebufferDrawBuffers(framebuffer, static_cast<GLsizei>(attachments.size()), std::data(attachments));
     }
 }
