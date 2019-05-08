@@ -25,7 +25,7 @@ layout (location = 5) out flat int _tex_diffuse;
 layout (location = 6) out flat int _tex_specular;
 
 void main() {
-    _position = 0.001 * position;
+    _position = position;
     _cam_pos = cam.position;
     _normal = normal;
     _uv = uv;

@@ -9,10 +9,6 @@ namespace vgl
 {
     namespace gl
     {
-        struct Specialization_constant {
-            GLuint index{};
-            GLuint value{};
-        };
         GLuint create_shader_spirv(GLenum type, const std::filesystem::path& binary_path) {
             auto binary = load_binary_file(binary_path);
             GLuint shader = glCreateShader(type);
@@ -35,45 +31,31 @@ namespace vgl
             return shader;
         }
 
-        GLuint create_shader_spirv(GLenum type, const std::vector<std::byte>& binary) {
-            GLuint shader = glCreateShader(type);
-            glShaderBinary(1, &shader, GL_SHADER_BINARY_FORMAT_SPIR_V, binary.data(), static_cast<int>(binary.size()));
-            return shader;
-        }
-
-        void shader_binary(GLuint shader, const std::vector<std::byte>& binary) {
-            glShaderBinary(1, &shader, GL_SHADER_BINARY_FORMAT_SPIR_V, binary.data(), static_cast<int>(binary.size()));
-        }
-
-        void specialize_shader(GLuint shader, const std::vector<Specialization_constant>& constants = {}) {
-            const auto c_size = static_cast<unsigned int>(constants.size());
-            std::vector<GLuint> c_indices(constants.size());
-            std::vector<GLuint> c_values(constants.size());
-            for (unsigned int i = 0; i < c_size; i++) {
-                c_indices.at(i) = constants.at(i).index;
-                c_values.at(i) = constants.at(i).value;
-            }
-            glSpecializeShader(shader, "main", c_size, c_indices.data(), c_values.data());
+        void compile_shader(const GLuint shader) {
+            glCompileShader(shader);
             GLint compile_status = 0;
             glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_status);
             if (compile_status == GL_FALSE) {
                 GLint log_size = 0;
                 glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_size);
-                std::string error_log(static_cast<unsigned long>(log_size), ' ');
+                std::string error_log;
+                error_log.resize(static_cast<unsigned long>(log_size));
                 glGetShaderInfoLog(shader, log_size, &log_size, error_log.data());
                 glDeleteShader(shader);
                 throw std::runtime_error{
-                    "Error specializing shader: " + std::to_string(shader) + "\n"
-                    + "Error log: \n"
+                    "Error while compiling shader from string.\nError log: \n"
                     + error_log
                 };
             }
         }
 
-        void specialize_shaders(std::initializer_list<GLuint> shader, const std::vector<Specialization_constant>& constants = {}) {
-            for (const auto& s : shader) {
-                specialize_shader(s, constants);
-            }
+        GLuint create_shader(const GLenum type, const std::string& source) {
+            const GLuint shader = glCreateShader(type);
+            const GLchar* source_ptr = source.data();
+            auto size = static_cast<GLint>(source.size());
+            glShaderSource(shader, 1, &source_ptr, &size);
+            compile_shader(shader);
+            return shader;
         }
 
         void attach_shaders(GLuint program, std::initializer_list<GLuint> shaders) {

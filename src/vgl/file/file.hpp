@@ -27,6 +27,18 @@ namespace vgl
         return res;
     }
 
+    std::string load_string_file(const std::filesystem::path& file_path) {
+        std::ifstream f(file_path, std::ios::binary | std::ios::in);
+        const auto file_size = std::filesystem::file_size(file_path);
+        std::string buffer(file_size, ' ');
+        f.read(reinterpret_cast<char*>(buffer.data()), file_size);
+        return buffer;
+    }
+
+    std::future<std::string> load_string_file_async(std::filesystem::path file_path) {
+        return std::async(std::launch::async, [f = std::move(file_path)]() { return load_string_file(f); });
+    }
+
     std::vector<std::byte> load_binary_file(const std::filesystem::path& file_path) {
         std::ifstream f(file_path, std::ios::binary | std::ios::in);
         const auto file_size = std::filesystem::file_size(file_path);

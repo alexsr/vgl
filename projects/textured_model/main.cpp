@@ -16,7 +16,8 @@
 #include "glm/gtc/type_ptr.hpp"
 #include <random>
 #include "vgl/gpu_api/gl/texture.hpp"
-#include <numeric>
+#include <glsp/preprocess.hpp>
+
 // enable optimus!
 using DWORD = uint32_t;
 extern "C" {
@@ -116,21 +117,22 @@ int main() {
     GLuint cam_ssbo = vgl::gl::create_buffer(cam_mats, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, cam_ssbo);
 
-    auto vs_binary_future = vgl::load_binary_file_async(vgl::shaders_path / "basic_shading/phong.vert");
-    auto fs_binary_future = vgl::load_binary_file_async(vgl::shaders_path / "basic_shading/phong.frag");
+    auto vs_binary_future = vgl::load_string_file_async(vgl::shaders_path / "basic_shading/phong.vert");
+    auto fs_binary_future = vgl::load_string_file_async(vgl::shaders_path / "basic_shading/phong.frag");
     auto vs_binary = vs_binary_future.get();
     auto fs_binary = fs_binary_future.get();
-    auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vs_binary);
-    auto frag_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, fs_binary);
-    vgl::gl::specialize_shader(vertex_shader);
-    vgl::gl::specialize_shader(frag_shader);
+    auto processed_vs = glsp::preprocess_source(vs_binary, "phong.vert", { (vgl::shaders_path / "basic_shading").string() });
+    auto processed_fs = glsp::preprocess_source(fs_binary, "phong.frag", { (vgl::shaders_path / "basic_shading").string() });
+    auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, processed_vs.contents);
+    auto frag_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, processed_fs.contents);
     auto program = vgl::gl::create_program({ vertex_shader, frag_shader });
 
-    auto lights_debug_vs_binary = vgl::load_binary_file_async(vgl::shaders_path / "debug/lights.vert");
-    auto lights_debug_fs_binary = vgl::load_binary_file_async(vgl::shaders_path / "debug/lights.frag");
-    auto lights_debug_vs = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, lights_debug_vs_binary.get());
-    auto lights_debug_fs = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, lights_debug_fs_binary.get());
-    vgl::gl::specialize_shaders({ lights_debug_vs, lights_debug_fs });
+    auto lights_debug_vs_binary = vgl::load_string_file_async(vgl::shaders_path / "debug/lights.vert");
+    auto lights_debug_fs_binary = vgl::load_string_file_async(vgl::shaders_path / "debug/lights.frag");
+    auto processed_lights_vs = glsp::preprocess_source(lights_debug_vs_binary.get(), "lights.vert", { (vgl::shaders_path / "debug").string() });
+    auto processed_lights_fs = glsp::preprocess_source(lights_debug_fs_binary.get(), "lights.frag", { (vgl::shaders_path / "debug").string() });
+    auto lights_debug_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, processed_lights_vs.contents);
+    auto lights_debug_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, processed_lights_fs.contents);
 
     const auto lights_debug = vgl::gl::create_program({ lights_debug_vs, lights_debug_fs });
     vgl::gl::delete_shaders({ lights_debug_vs, lights_debug_fs });
@@ -148,6 +150,7 @@ int main() {
     GLuint model_vao = 0;
     GLuint material_buffer = 0;
     GLuint mat_info_buffer = 0;
+    GLuint tex_ref_buffer = 0;
     std::vector<GLuint> textures;
 
     GLuint lights_ssbo = vgl::gl::create_buffer(lights, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
@@ -192,8 +195,9 @@ int main() {
                             &tex_data.at(i).image_size.x, &tex_data.at(i).image_size.y,
                             &image_channels, image_channels);
                     }
+                    std::vector<GLuint64> tex_handles(scene.textures.size());
                     for (auto i = 0; i < scene.textures.size(); ++i) {
-                        GLuint tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
+                        auto tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
                         textures.at(i) = tex_id;
                         glTextureParameteri(tex_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                         glTextureParameteri(tex_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -218,16 +222,8 @@ int main() {
                             glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGBA, GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
                             break;
                         }
+                        tex_handles.at(i) = vgl::gl::gen_resident_handle(tex_id);
                         stbi_image_free(tex_data.at(i).ptr);
-                    }
-                    vgl::gl::delete_program(program);
-                    vgl::gl::delete_shader(frag_shader);
-                    frag_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, fs_binary);
-                    vgl::gl::specialize_shader(frag_shader, { vgl::gl::Specialization_constant{0, static_cast<unsigned int>(textures.size())}});
-                    program = vgl::gl::create_program({ vertex_shader, frag_shader });
-                    for (unsigned int t = 0; t < static_cast<unsigned int>(textures.size()); ++t) {
-                        glBindTextureUnit(t, textures.at(t));
-                        glProgramUniform1i(program, t, t);
                     }
                     mesh_loaded = true;
                     model_vbo = vgl::gl::create_buffer(scene.vertices);
@@ -238,6 +234,8 @@ int main() {
                     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, material_buffer);
                     mat_info_buffer = vgl::gl::create_buffer(scene.objects);
                     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, mat_info_buffer);
+                    tex_ref_buffer = vgl::gl::create_buffer(tex_handles);
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, tex_ref_buffer);
                     model_vao = vgl::gl::create_vertex_array();
                     glVertexArrayVertexBuffer(model_vao, 0, model_vbo, 0, static_cast<int>(vgl::sizeof_value_type(scene.vertices)));
                     glVertexArrayElementBuffer(model_vao, indices_buffer);
@@ -318,9 +316,6 @@ int main() {
                     GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
                 std::memcpy(buffer_ptr, &cam_mats, sizeof(cam_mats));
                 glUnmapNamedBuffer(cam_ssbo);
-            }
-            for (unsigned int t = 0; t < static_cast<unsigned int>(textures.size()); ++t) {
-                glBindTextureUnit(t, textures.at(t));
             }
             glUseProgram(program);
             glBindVertexArray(model_vao);

@@ -11,5 +11,12 @@ namespace vgl
 			glCreateTextures(target, 1, &texture);
 			return texture;
         }
+
+        GLuint64 gen_resident_handle(const GLuint texture) {
+            const auto handle = glGetTextureHandleARB(texture);
+            glMakeTextureHandleResidentARB(handle);
+            return handle;
+        }
+
     }
 }

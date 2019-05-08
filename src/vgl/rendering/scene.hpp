@@ -252,45 +252,45 @@ namespace vgl
             auto ai_mat = ai_scene->mMaterials[m];
             aiString path;
             auto ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_DIFFUSE(0), path);
-            std::filesystem::path file_path = path_parent / path.C_Str();
+            std::filesystem::path tex_path = path_parent / path.C_Str();
             if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 diffuse_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ file_path, 4 });
+                    scene.textures.emplace_back(Texture_info{ tex_path, 4 });
                 }
             }
-            ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_NORMALS(0), path);
-            file_path = path_parent / path.C_Str();
+            /*ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_NORMALS(0), path);
+            tex_path = path_parent / path.C_Str();
             if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 normal_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ file_path, 3 });
+                    scene.textures.emplace_back(Texture_info{ tex_path, 3 });
                 }
             }
             ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_SPECULAR(0), path);
-            file_path = path_parent / path.C_Str();
+            tex_path = path_parent / path.C_Str();
             if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 specular_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ file_path, 4 });
+                    scene.textures.emplace_back(Texture_info{ tex_path, 4 });
                 }
             }
             ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_EMISSIVE(0), path);
-            file_path = path_parent / path.C_Str();
+            tex_path = path_parent / path.C_Str();
             if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 emissive_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ file_path, 4 });
+                    scene.textures.emplace_back(Texture_info{ tex_path, 4 });
                 }
             }
             ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_HEIGHT(0), path);
-            file_path = path_parent / path.C_Str();
+            tex_path = path_parent / path.C_Str();
             if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 height_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ file_path, 1 });
+                    scene.textures.emplace_back(Texture_info{ tex_path, 1 });
                 }
-            }
+            }*/
         }
 
         scene.objects.resize(ai_scene->mNumMeshes);

@@ -1,5 +1,7 @@
 #version 460
 
+#extension GL_ARB_bindless_texture : require
+
 layout (location = 0) in vec3 _position;
 layout (location = 1) in vec3 _normal;
 layout (location = 2) in vec2 _uv;
@@ -9,10 +11,6 @@ layout (location = 5) in flat int _tex_diffuse;
 layout (location = 6) in flat int _tex_specular;
 
 layout (location = 0) out vec4 _color;
-
-layout (constant_id = 0) const uint texture_count = gl_MaxCombinedTextureImageUnits - 1;
-
-layout (binding = 0) uniform sampler2D textures[texture_count];
 
 #include "../include/light.glsl"
 #include "../include/material.glsl"
@@ -26,6 +24,10 @@ layout (std430, binding = MATERIAL_BINDING) buffer material_buffer {
     Material materials[];
 };
 
+layout (std430, binding = TEXTURE_REFS_BINDING) buffer tex_ref_buffer {
+    sampler2D textures[];
+};
+
 void main() {
     _color.rgb = vec3(1);
     if (_mat_id != -1) {
@@ -35,7 +37,7 @@ void main() {
         vec4 diffuse_color = materials[_mat_id].diffuse;
         vec3 normal = normalize(_normal);
         vec3 pos = _position;
-        if (texture_count > 0) {
+        if (textures.length() > 0) {
             if (_tex_diffuse != -1) {
                 diffuse_color = texture(textures[_tex_diffuse], _uv);
                 if (diffuse_color.a == 0.0) {

@@ -47,6 +47,9 @@ set(GLM_TEST_ENABLE OFF)
 add_dependency_subdir(glm)
 add_library(glm::glm ALIAS glm)
 
+
+add_dependency_subdir(GLshader)
+
 add_header_only_lib(${EXTERNAL_PATH}/stb stb REQUIRED)
 add_header_only_lib(${EXTERNAL_PATH}/catch2/single_include/catch2 catch2 REQUIRED)
 

@@ -24,3 +24,6 @@
 	path = external/nativefiledialog
 	url = https://github.com/mlabbe/nativefiledialog.git
 	ignore = dirty
+[submodule "external/GLshader"]
+	path = external/GLshader
+	url = https://github.com/johannes-braun/GLshader.git

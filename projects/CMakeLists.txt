@@ -4,17 +4,12 @@ if(${CMAKE_VERSION} VERSION_LESS 3.12)
     cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
 endif()
 
-add_executable(example_model example_model/main.cpp)
-target_link_libraries(example_model PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
-							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
-
 add_executable(example_texture example_texture/main.cpp)
 target_link_libraries(example_texture PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
 							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
 
 add_executable(textured_model textured_model/main.cpp)
-target_link_libraries(textured_model PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
-							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+target_link_libraries(textured_model PUBLIC vgl)
 
 add_executable(cubemap_generator cubemap_generator/main.cpp)
 target_link_libraries(cubemap_generator PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp

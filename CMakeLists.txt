@@ -26,7 +26,6 @@ set(SRC_PATH ${CMAKE_SOURCE_DIR}/src)
 
 set(LIB_PATH ${PROJECT_BINARY_DIR}/lib)
 set(BIN_PATH ${PROJECT_BINARY_DIR}/bin)
-set(SHADERS_BIN_PATH ${PROJECT_BINARY_DIR}/shaders)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${LIB_PATH})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${LIB_PATH})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${LIB_PATH})
@@ -38,4 +37,3 @@ include(cmake/external.cmake)
 
 add_subdirectory(src)
 add_subdirectory(projects)
-add_subdirectory(shaders)
