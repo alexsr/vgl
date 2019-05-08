@@ -10,6 +10,8 @@
 #include "vgl/file/file.hpp"
 #include <filesystem>
 #include <set>
+#include <glm/gtx/component_wise.hpp>
+#include "bounds.hpp"
 
 namespace vgl
 {
@@ -26,6 +28,16 @@ namespace vgl
         glm::vec3 normal{};
         glm::vec2 uv{};
     };
+
+    Bounds compute_AABB(const std::vector<Vertex>& vertices) {
+        Bounds bounds{};
+        for (auto& v : vertices) {
+            auto p = glm::vec4(v.pos, 1.0f);
+            bounds.min = glm::min(p, bounds.min);
+            bounds.max = glm::max(p, bounds.max);
+        }
+        return bounds;
+    }
 
     struct Mesh {
         std::vector<Vertex> vertices;
@@ -54,17 +66,18 @@ namespace vgl
     };
 
     struct Scene_object {
+        glm::mat4 model{1.0};
         int material_id = -1;
         int texture_diffuse = -1;
         int texture_specular = -1;
         int texture_normal = -1;
         int texture_height = -1;
         int texture_emissive = -1;
-        int pad1 = 0;
-        int pad2 = 0;
+        int pad1;
+        int pad2;
     };
 
-    bool operator==(const Vertex& v, const glm::vec3& p) {
+    inline bool operator==(const Vertex& v, const glm::vec3& p) {
         return v.pos == p;
     }
 
@@ -75,6 +88,8 @@ namespace vgl
         std::vector<Scene_object> objects;
         std::vector<Material> materials;
         std::vector<Texture_info> textures;
+        Bounds scene_bounds{};
+        std::vector<Bounds> object_bounds;
 
         void add_mesh(Mesh& m) {
             object_ranges.push_back(Object_range{
@@ -83,11 +98,6 @@ namespace vgl
                 static_cast<unsigned int>(m.indices.size()),
                 static_cast<unsigned int>(indices.size())
                 });
-            auto it = std::find(m.vertices.begin(), m.vertices.end(), glm::vec3(0.0));
-            auto i = 0;
-            if (it != m.vertices.end()) {
-                i = 2;
-            }
             std::move(m.indices.begin(), m.indices.end(), std::back_inserter(indices));
             std::move(m.vertices.begin(), m.vertices.end(), std::back_inserter(vertices));
             m.vertices.clear();
@@ -220,7 +230,6 @@ namespace vgl
             aiprocess_flags);
         Scene scene{};
         auto path_parent = file_path.parent_path();
-        auto tex_count = ai_scene->mNumTextures;
         scene.materials.resize(ai_scene->mNumMaterials);
         std::map<unsigned int, std::string> names;
 #pragma omp parallel for
@@ -266,7 +275,7 @@ namespace vgl
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
                     scene.textures.emplace_back(Texture_info{ tex_path, 3 });
                 }
-            }
+            }*/
             ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_SPECULAR(0), path);
             tex_path = path_parent / path.C_Str();
             if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
@@ -275,7 +284,7 @@ namespace vgl
                     scene.textures.emplace_back(Texture_info{ tex_path, 4 });
                 }
             }
-            ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_EMISSIVE(0), path);
+            /*ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_EMISSIVE(0), path);
             tex_path = path_parent / path.C_Str();
             if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 emissive_map[name] = path.C_Str();
@@ -294,11 +303,12 @@ namespace vgl
         }
 
         scene.objects.resize(ai_scene->mNumMeshes);
+        scene.object_bounds.resize(ai_scene->mNumMeshes);
         for (unsigned int m = 0; m < ai_scene->mNumMeshes; m++) {
             auto ai_mesh = ai_scene->mMeshes[m];
             auto temp = generate_mesh(ai_mesh);
             if (ai_mesh->mMaterialIndex >= 0) {
-                scene.objects.at(m).material_id = ai_mesh->mMaterialIndex;
+                scene.objects.at(m).material_id = static_cast<int>(ai_mesh->mMaterialIndex);
                 if (names.find(ai_mesh->mMaterialIndex) != names.end()) {
                     auto name = names[ai_mesh->mMaterialIndex];
                     if (diffuse_map.find(name) != diffuse_map.end()) {
@@ -318,6 +328,8 @@ namespace vgl
                     }
                 }
             }
+            scene.object_bounds.at(m) = compute_AABB(temp.vertices);
+            scene.scene_bounds.combine_with(scene.object_bounds.at(m));
             scene.add_mesh(temp);
         }
         importer.FreeScene();

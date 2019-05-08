@@ -2,6 +2,7 @@
 #define SCENE_OBJECT_GLSL
 
 struct Scene_object {
+    mat4 model;
     int material_id;
     int texture_diffuse;
     int texture_specular;

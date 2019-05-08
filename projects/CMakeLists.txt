@@ -12,7 +12,9 @@ add_executable(textured_model textured_model/main.cpp)
 target_link_libraries(textured_model PUBLIC vgl)
 
 add_executable(cubemap_generator cubemap_generator/main.cpp)
-target_link_libraries(cubemap_generator PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
-							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+target_link_libraries(cubemap_generator PUBLIC stb::stb)
+
+add_executable(raytracing raytracing/main.cpp)
+target_link_libraries(raytracing PUBLIC vgl)
 
 add_subdirectory(computer_vision)

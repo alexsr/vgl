@@ -20,9 +20,11 @@
 
 // enable optimus!
 using DWORD = uint32_t;
+
 extern "C" {
-    _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+_declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 }
+
 struct Light {
     glm::vec4 pos{};
     glm::vec4 color{};
@@ -47,7 +49,7 @@ float gen_random_float(const float lower, const float upper) {
     return uni(eng);
 }
 
-glm::vec4 gen_random_vec4(const float lower= 0.0f, const float upper = 1.0f, const float w = 1.0f) {
+glm::vec4 gen_random_vec4(const float lower = 0.0f, const float upper = 1.0f, const float w = 1.0f) {
     return glm::vec4(gen_random_float(lower, upper), gen_random_float(lower, upper), gen_random_float(lower, upper), w);
 }
 
@@ -121,21 +123,41 @@ int main() {
     auto fs_binary_future = vgl::load_string_file_async(vgl::shaders_path / "basic_shading/phong.frag");
     auto vs_binary = vs_binary_future.get();
     auto fs_binary = fs_binary_future.get();
-    auto processed_vs = glsp::preprocess_source(vs_binary, "phong.vert", { (vgl::shaders_path / "basic_shading").string() });
-    auto processed_fs = glsp::preprocess_source(fs_binary, "phong.frag", { (vgl::shaders_path / "basic_shading").string() });
+    auto processed_vs = glsp::preprocess_source(vs_binary, "phong.vert",
+                                                {(vgl::shaders_path / "basic_shading").string()});
+    auto processed_fs = glsp::preprocess_source(fs_binary, "phong.frag",
+                                                {(vgl::shaders_path / "basic_shading").string()});
     auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, processed_vs.contents);
     auto frag_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, processed_fs.contents);
-    auto program = vgl::gl::create_program({ vertex_shader, frag_shader });
+    auto program = vgl::gl::create_program({vertex_shader, frag_shader});
 
     auto lights_debug_vs_binary = vgl::load_string_file_async(vgl::shaders_path / "debug/lights.vert");
     auto lights_debug_fs_binary = vgl::load_string_file_async(vgl::shaders_path / "debug/lights.frag");
-    auto processed_lights_vs = glsp::preprocess_source(lights_debug_vs_binary.get(), "lights.vert", { (vgl::shaders_path / "debug").string() });
-    auto processed_lights_fs = glsp::preprocess_source(lights_debug_fs_binary.get(), "lights.frag", { (vgl::shaders_path / "debug").string() });
+    auto processed_lights_vs = glsp::preprocess_source(lights_debug_vs_binary.get(), "lights.vert",
+                                                       {(vgl::shaders_path / "debug").string()});
+    auto processed_lights_fs = glsp::preprocess_source(lights_debug_fs_binary.get(), "lights.frag",
+                                                       {(vgl::shaders_path / "debug").string()});
     auto lights_debug_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, processed_lights_vs.contents);
     auto lights_debug_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, processed_lights_fs.contents);
 
-    const auto lights_debug = vgl::gl::create_program({ lights_debug_vs, lights_debug_fs });
-    vgl::gl::delete_shaders({ lights_debug_vs, lights_debug_fs });
+    const auto lights_debug = vgl::gl::create_program({lights_debug_vs, lights_debug_fs});
+    vgl::gl::delete_shaders({lights_debug_vs, lights_debug_fs});
+
+    auto aabb_debug_vs_source_ftr = vgl::load_string_file_async(vgl::shaders_path / "debug/bb.vert");
+    auto aabb_debug_gs_source_ftr = vgl::load_string_file_async(vgl::shaders_path / "debug/bb.geom");
+    auto aabb_debug_fs_source_ftr = vgl::load_string_file_async(vgl::shaders_path / "debug/red.frag");
+    auto aabb_debug_vs_source = glsp::preprocess_source(aabb_debug_vs_source_ftr.get(), "bb.vert",
+                                                        {(vgl::shaders_path / "debug").string()}).contents;
+    auto aabb_debug_gs_source = glsp::preprocess_source(aabb_debug_gs_source_ftr.get(), "bb.geom",
+                                                        {(vgl::shaders_path / "debug").string()}).contents;
+    auto aabb_debug_fs_source = glsp::preprocess_source(aabb_debug_fs_source_ftr.get(), "red.frag",
+                                                        {(vgl::shaders_path / "debug").string()}).contents;
+    auto aabb_debug_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, aabb_debug_vs_source);
+    auto aabb_debug_gs = vgl::gl::create_shader(GL_GEOMETRY_SHADER, aabb_debug_gs_source);
+    auto aabb_debug_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, aabb_debug_fs_source);
+
+    const auto aabb_debug = vgl::gl::create_program({aabb_debug_vs, aabb_debug_gs, aabb_debug_fs});
+    vgl::gl::delete_shaders({aabb_debug_vs, aabb_debug_gs, aabb_debug_fs});
 
     GLuint debug_vao = vgl::gl::create_vertex_array();
 
@@ -151,6 +173,7 @@ int main() {
     GLuint material_buffer = 0;
     GLuint mat_info_buffer = 0;
     GLuint tex_ref_buffer = 0;
+    GLuint bounds_buffer = 0;
     std::vector<GLuint> textures;
 
     GLuint lights_ssbo = vgl::gl::create_buffer(lights, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
@@ -188,12 +211,13 @@ int main() {
 #pragma omp parallel for
                     for (int i = 0; i < static_cast<int>(textures.size()); ++i) {
                         auto image_path = scene.textures.at(i).file_path.string();
-                        stbi_info(image_path.c_str(), &tex_data.at(i).image_size.x, &tex_data.at(i).image_size.y, nullptr);
+                        stbi_info(image_path.c_str(), &tex_data.at(i).image_size.x, &tex_data.at(i).image_size.y,
+                                  nullptr);
                         stbi_set_flip_vertically_on_load(1);
                         auto image_channels = scene.textures.at(i).channels;
                         tex_data.at(i).ptr = stbi_load(image_path.c_str(),
-                            &tex_data.at(i).image_size.x, &tex_data.at(i).image_size.y,
-                            &image_channels, image_channels);
+                                                       &tex_data.at(i).image_size.x, &tex_data.at(i).image_size.y,
+                                                       &image_channels, image_channels);
                     }
                     std::vector<GLuint64> tex_handles(scene.textures.size());
                     for (auto i = 0; i < scene.textures.size(); ++i) {
@@ -205,22 +229,26 @@ int main() {
                         glTextureParameteri(tex_id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
                         auto image_size = tex_data.at(i).image_size;
                         switch (scene.textures.at(i).channels) {
-                        case 1:
-                            glTextureStorage2D(tex_id, 1, GL_R8, image_size.x, image_size.y);
-                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RED, GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
-                            break;
-                        case 2:
-                            glTextureStorage2D(tex_id, 1, GL_RG8, image_size.x, image_size.y);
-                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RG, GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
-                            break;
-                        case 3:
-                            glTextureStorage2D(tex_id, 1, GL_RGB8, image_size.x, image_size.y);
-                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGB, GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
-                            break;
-                        default:
-                            glTextureStorage2D(tex_id, 1, GL_RGBA8, image_size.x, image_size.y);
-                            glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGBA, GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
-                            break;
+                            case 1:
+                                glTextureStorage2D(tex_id, 1, GL_R8, image_size.x, image_size.y);
+                                glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RED,
+                                                    GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
+                                break;
+                            case 2:
+                                glTextureStorage2D(tex_id, 1, GL_RG8, image_size.x, image_size.y);
+                                glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RG,
+                                                    GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
+                                break;
+                            case 3:
+                                glTextureStorage2D(tex_id, 1, GL_RGB8, image_size.x, image_size.y);
+                                glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGB,
+                                                    GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
+                                break;
+                            default:
+                                glTextureStorage2D(tex_id, 1, GL_RGBA8, image_size.x, image_size.y);
+                                glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGBA,
+                                                    GL_UNSIGNED_BYTE, tex_data.at(i).ptr);
+                                break;
                         }
                         tex_handles.at(i) = vgl::gl::gen_resident_handle(tex_id);
                         stbi_image_free(tex_data.at(i).ptr);
@@ -236,8 +264,11 @@ int main() {
                     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, mat_info_buffer);
                     tex_ref_buffer = vgl::gl::create_buffer(tex_handles);
                     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, tex_ref_buffer);
+                    bounds_buffer = vgl::gl::create_buffer(scene.object_bounds);
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, bounds_buffer);
                     model_vao = vgl::gl::create_vertex_array();
-                    glVertexArrayVertexBuffer(model_vao, 0, model_vbo, 0, static_cast<int>(vgl::sizeof_value_type(scene.vertices)));
+                    glVertexArrayVertexBuffer(model_vao, 0, model_vbo, 0,
+                                              static_cast<int>(vgl::sizeof_value_type(scene.vertices)));
                     glVertexArrayElementBuffer(model_vao, indices_buffer);
                     glEnableVertexArrayAttrib(model_vao, 0);
                     glEnableVertexArrayAttrib(model_vao, 1);
@@ -294,13 +325,15 @@ int main() {
         }
         if (mesh_loaded) {
             const auto lights_ptr = glMapNamedBufferRange(lights_ssbo, 0, sizeof(Light) * lights.size(),
-                GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
+                                                          GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT |
+                                                          GL_MAP_INVALIDATE_RANGE_BIT);
             std::memcpy(lights_ptr, lights.data(), sizeof(Light) * lights.size());
             glUnmapNamedBuffer(lights_ssbo);
-            if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused() && !ImGui::IsAnyItemActive()) {
+            if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused() && !ImGui::
+                IsAnyItemActive()) {
                 glm::vec3 dir(static_cast<float>(window.key[GLFW_KEY_A]) - static_cast<float>(window.key[GLFW_KEY_D]),
-                    static_cast<float>(window.key[GLFW_KEY_E]) - static_cast<float>(window.key[GLFW_KEY_Q]),
-                    static_cast<float>(window.key[GLFW_KEY_W]) - static_cast<float>(window.key[GLFW_KEY_S]));
+                              static_cast<float>(window.key[GLFW_KEY_E]) - static_cast<float>(window.key[GLFW_KEY_Q]),
+                              static_cast<float>(window.key[GLFW_KEY_W]) - static_cast<float>(window.key[GLFW_KEY_S]));
                 if (dot(dir, dir) != 0.0f) {
                     cam.move(glm::normalize(dir), dt);
                 }
@@ -313,7 +346,8 @@ int main() {
                 cam_mats.rotation = glm::mat4_cast(cam.rotation);
                 cam_mats.position = glm::vec4(cam.position, 1.0f);
                 const auto buffer_ptr = glMapNamedBufferRange(cam_ssbo, 0, sizeof(cam_mats),
-                    GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
+                                                              GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT |
+                                                              GL_MAP_INVALIDATE_RANGE_BIT);
                 std::memcpy(buffer_ptr, &cam_mats, sizeof(cam_mats));
                 glUnmapNamedBuffer(cam_ssbo);
             }
@@ -322,15 +356,20 @@ int main() {
             glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_indirect_buffer);
             glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
                                         static_cast<unsigned int>(scene.objects.size()), 0);
-            glUseProgram(lights_debug);
             glBindVertexArray(debug_vao);
+            glUseProgram(aabb_debug);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glDrawArraysInstancedBaseInstance(GL_LINES, 0, 2, static_cast<int>(scene.object_bounds.size()), 0);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glUseProgram(lights_debug);
             glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 4, static_cast<int>(lights.size()), 0);
         }
         ImGui::End();
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         window.swap_buffers();
-        if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused() && !ImGui::IsAnyItemActive()) {
+        if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused() && !ImGui::
+            IsAnyItemActive()) {
             if (window.mouse[GLFW_MOUSE_BUTTON_LEFT]) {
                 glfwSetInputMode(window.get(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             }

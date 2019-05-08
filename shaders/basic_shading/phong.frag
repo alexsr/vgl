@@ -58,7 +58,10 @@ void main() {
             else if (lights[i].type == 1) {
                 vec3 light_dir = normalize(lights[i].pos.xyz - _position);
                 float cos_phi = max(dot(light_dir, normal), 0.0);
-                float cos_psi_n = pow(max(dot(reflect(light_dir, normal), v), 0), shininess);
+                float cos_psi_n = 0;
+                if (shininess != 0) {
+                    cos_psi_n = pow(max(dot(reflect(light_dir, normal), v), 0), shininess);
+                }
                 _color.rgb += lights[i].color.rgb * (cos_phi * diffuse_color.rgb + cos_psi_n * specular_color);
             }
         }
