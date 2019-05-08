@@ -12,6 +12,7 @@
 #include <set>
 #include <glm/gtx/component_wise.hpp>
 #include "bounds.hpp"
+#include "tex_info.hpp"
 
 namespace vgl
 {
@@ -51,11 +52,6 @@ namespace vgl
         glm::vec4 emissive{ 0.0f };
         glm::vec4 reflective{ 0.0f };
         glm::vec4 transparent{ 0.0f };
-    };
-
-    struct Texture_info {
-        std::filesystem::path file_path;
-        int channels{};
     };
 
     struct Object_range {
