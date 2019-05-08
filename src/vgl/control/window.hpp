@@ -57,9 +57,8 @@ namespace vgl
             };
         }
 
-        void enable_gl(int major = 4, int minor = 6, bool debug = false) const {
+        void enable_gl(int major = 4, int minor = 6) const {
             glfwMakeContextCurrent(_ptr.get());
-            glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, debug);
             if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
                 throw std::runtime_error{"Failed to initialize OpenGL."};
             }
