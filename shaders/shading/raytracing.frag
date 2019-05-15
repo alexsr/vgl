@@ -36,7 +36,7 @@ struct ray {
     vec3 origin;
 };
 
-bool rayTriangleIntersect(const ray r, Vertex v0, Vertex v1, Vertex v2, inout float t) {
+bool rayTriangleIntersect(const ray r, Vertex v0, Vertex v1, Vertex v2, inout float t, inout float u, inout float v) {
     vec3 v0v1 = vec3(v1.pos - v0.pos);
     vec3 v0v2 = vec3(v2.pos - v0.pos);
     vec3 pvec = cross(r.dir, v0v2);
@@ -47,11 +47,11 @@ bool rayTriangleIntersect(const ray r, Vertex v0, Vertex v1, Vertex v2, inout fl
     float invDet = 1.0 / det;
 
     vec3 tvec = r.origin - v0.pos.xyz;
-    float u = dot(tvec, pvec) * invDet;
+    u = dot(tvec, pvec) * invDet;
     if (u < 0 || u > 1) return false;
 
     vec3 qvec = cross(tvec, v0v1);
-    float v = dot(r.dir, qvec) * invDet;
+    v = dot(r.dir, qvec) * invDet;
     if (v < 0 || u + v > 1) return false;
     t = dot(v0v2, qvec) * invDet;
     if (t > 0.000001) {
@@ -59,6 +59,11 @@ bool rayTriangleIntersect(const ray r, Vertex v0, Vertex v1, Vertex v2, inout fl
     }
     else // This means that there is a line intersection but not a ray intersection.
         return false;
+}
+
+float blinn_phong_spec(vec3 light_dir, vec3 view_dir, vec3 normal, float shininess) {
+    vec3 halfway_dir = normalize(light_dir + view_dir);
+    return pow(max(dot(normal, halfway_dir), 0), shininess);
 }
 
 void main() {
@@ -69,15 +74,33 @@ void main() {
     _color.a = 1.0;
     for (int i = 0; i < triangles.length(); i++) {
         ivec3 idx = triangles[i].idx;
-        bool intersect = rayTriangleIntersect(ray(normalize(_ray_dir), cam.position), vertices[idx.x], vertices[idx.y], vertices[idx.z], t);
+        float u = 0;
+        float v = 0;
+        bool intersect = rayTriangleIntersect(ray(normalize(_ray_dir), cam.position), vertices[idx.x], vertices[idx.y], vertices[idx.z], t, u, v);
         if (intersect) {
-            hit = i;
-            t_min = min(t_min, t);
+            if (t_min > t) {
+                t_min = min(t_min, t);
+                hit = i;
+                n = normalize(vec3((1.0 - u - v) * vertices[idx.x].normal + u * vertices[idx.y].normal + v * vertices[idx.z].normal));
+            }
         }
     }
     _color.rgb = vec3(0);
     if (hit != -1) {
         vec3 p = cam.position + t_min * normalize(_ray_dir);
-        _color.rgb = p;
+        vec3 v = -normalize(_ray_dir);
+        float shininess = 10.0f;
+        for (int i = 0; i < 1; i++) {
+            vec3 pos_to_light = lights[i].pos.xyz - p;
+            float dist2 = dot(pos_to_light, pos_to_light);
+            float dist = sqrt(dist2);
+            float attenuation = 1.0 / (lights[i].attenuation.constant + lights[i].attenuation.linear * dist
+                + dist2 * lights[i].attenuation.quadratic);
+            vec4 light_color = lights[i].color;
+            
+            vec3 pos_to_light_norm = normalize(pos_to_light);
+            float cos_phi = max(dot(pos_to_light_norm, n), 0.0);
+            _color.rgb = light_color.rgb * cos_phi * p;
+        }
     }
 }

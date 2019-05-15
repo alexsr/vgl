@@ -346,8 +346,8 @@ int main() {
                         vertices.at(i).uv = glm::vec2(scene.vertices.at(i).uv);
                     }
                     vertices_buffer = vgl::gl::create_buffer(vertices);
-                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, vertices_buffer);
                     model_vbo = vgl::gl::create_buffer(scene.vertices);
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, vertices_buffer);
                     struct Triangle {
                         glm::ivec3 idx;
                         int pad = 0;
