@@ -321,9 +321,7 @@ int main() {
                     }
                     mesh_loaded = true;
                     indices_buffer = vgl::gl::create_buffer(scene.indices);
-                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, indices_buffer);
                     model_vbo = vgl::gl::create_buffer(scene.vertices);
-                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, model_vbo);
                     draw_indirect_buffer = vgl::gl::create_buffer(scene.draw_cmds);
                     material_buffer = vgl::gl::create_buffer(scene.materials);
                     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, material_buffer);

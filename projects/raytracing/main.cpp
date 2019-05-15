@@ -261,6 +261,8 @@ int main() {
     vgl::gl::glbuffer mat_info_buffer = 0;
     vgl::gl::glbuffer tex_ref_buffer = 0;
     vgl::gl::glbuffer bounds_buffer = 0;
+    vgl::gl::glbuffer triangle_buffer = 0;
+    vgl::gl::glbuffer vertices_buffer = 0;
 
     std::vector<vgl::gl::gltexture> textures;
 
@@ -331,9 +333,36 @@ int main() {
                     }
                     mesh_loaded = true;
                     indices_buffer = vgl::gl::create_buffer(scene.indices);
-                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, indices_buffer);
+                    struct Vertex {
+                        glm::vec4 pos;
+                        glm::vec4 normal;
+                        glm::vec2 uv;
+                        glm::vec2 pad;
+                    };
+                    std::vector<Vertex> vertices(scene.vertices.size());
+                    for (int i = 0; i < vertices.size(); ++i) {
+                        vertices.at(i).pos = glm::vec4(scene.vertices.at(i).pos, 1.0f);
+                        vertices.at(i).normal = glm::vec4(scene.vertices.at(i).normal, 0.0f);
+                        vertices.at(i).uv = glm::vec2(scene.vertices.at(i).uv);
+                    }
+                    vertices_buffer = vgl::gl::create_buffer(vertices);
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, vertices_buffer);
                     model_vbo = vgl::gl::create_buffer(scene.vertices);
-                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, model_vbo);
+                    struct Triangle {
+                        glm::ivec3 idx;
+                        int pad = 0;
+                    };
+                    std::vector<Triangle> triangles(scene.indices.size() / 3);
+                    for (int i = 0; i < triangles.size(); i++) {
+                        triangles.at(i).idx = { scene.indices.at(i * 3),scene.indices.at(i * 3 + 1), scene.indices.at(i * 3 + 2) };
+                    }
+                    for (auto& ob : scene.draw_cmds) {
+                        for (int i = ob.first_index / 3; i < (ob.first_index + ob.count) / 3; ++i) {
+                            triangles.at(i).idx += ob.base_vertex;
+                        }
+                    }
+                    triangle_buffer = vgl::gl::create_buffer(triangles);
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, triangle_buffer);
                     draw_indirect_buffer = vgl::gl::create_buffer(scene.draw_cmds);
                     material_buffer = vgl::gl::create_buffer(scene.materials);
                     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, material_buffer);
