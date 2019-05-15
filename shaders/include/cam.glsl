@@ -2,10 +2,10 @@
 #define CAM_GLSL
 
 struct Camera {
-    mat3 rotation;
-    vec4 pad;
+    mat4 view;
     vec3 position;
     mat4 proj;
+    mat4 inv_vp;
 };
 
 #endif // CAM_GLSL

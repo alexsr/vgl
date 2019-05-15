@@ -143,11 +143,13 @@ int main() {
     auto cam_ssbo = vgl::gl::create_buffer(cam.get_cam_data(), GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, cam_ssbo);
 
-    vgl::gl::glprogram phong, depth_prepass, lights_debug, aabb_debug, screen;
+    vgl::gl::glprogram phong, depth_prepass, lights_debug, aabb_debug, screen, raytracing;
 
     auto reload_shaders = [&]() {
         auto phong_vs_future = vgl::file::load_string_file_async(vgl::file::shaders_path / "shading/phong.vert");
         auto phong_fs_future = vgl::file::load_string_file_async(vgl::file::shaders_path / "shading/phong.frag");
+        auto raytracing_vs_future = vgl::file::load_string_file_async(vgl::file::shaders_path / "shading/raytracing.vert");
+        auto raytracing_fs_future = vgl::file::load_string_file_async(vgl::file::shaders_path / "shading/raytracing.frag");
         auto depth_prepass_vs_future = vgl::file::load_string_file_async(vgl::file::shaders_path / "shading/depth_prepass.vert");
         auto depth_prepass_fs_future = vgl::file::load_string_file_async(vgl::file::shaders_path / "shading/depth_prepass.frag");
         auto lights_debug_vs_ftr = vgl::file::load_string_file_async(vgl::file::shaders_path / "debug/lights.vert");
@@ -167,6 +169,14 @@ int main() {
         phong = vgl::gl::create_program({ phong_vs, phong_fs });
         vgl::gl::delete_shader(phong_vs);
         vgl::gl::delete_shader(phong_fs);
+
+        auto raytracing_vs_source = glsp::preprocess_source(raytracing_vs_future.get(), "raytracing.vert",
+            { (vgl::file::shaders_path / "shading").string() }).contents;
+        auto raytracing_fs_source = glsp::preprocess_source(raytracing_fs_future.get(), "raytracing.frag",
+            { (vgl::file::shaders_path / "shading").string() }).contents;
+        auto raytracing_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, raytracing_vs_source);
+        auto raytracing_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, raytracing_fs_source);
+        raytracing = vgl::gl::create_program({ raytracing_vs, raytracing_fs });
 
         auto screen_vs_source = glsp::preprocess_source(screen_vs_ftr.get(), "screen.vert",
             { (vgl::file::shaders_path / "screen").string() }).contents;
@@ -400,7 +410,7 @@ int main() {
             lights_ssbo = vgl::gl::create_buffer(lights, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lights_ssbo);
         }
-        if (mesh_loaded) {
+        //if (mesh_loaded) {
             const auto lights_ptr = glMapNamedBufferRange(lights_ssbo, 0, sizeof(Light) * lights.size(),
                 GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT |
                 GL_MAP_INVALIDATE_RANGE_BIT);
@@ -408,9 +418,9 @@ int main() {
             glUnmapNamedBuffer(lights_ssbo);
             if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused()
                 && !ImGui::IsAnyItemActive()) {
-                glm::vec3 dir(static_cast<float>(window.key[GLFW_KEY_A]) - static_cast<float>(window.key[GLFW_KEY_D]),
+                glm::vec3 dir(static_cast<float>(window.key[GLFW_KEY_D]) - static_cast<float>(window.key[GLFW_KEY_A]),
                     static_cast<float>(window.key[GLFW_KEY_E]) - static_cast<float>(window.key[GLFW_KEY_Q]),
-                    static_cast<float>(window.key[GLFW_KEY_W]) - static_cast<float>(window.key[GLFW_KEY_S]));
+                    static_cast<float>(window.key[GLFW_KEY_S]) - static_cast<float>(window.key[GLFW_KEY_W]));
                 if (dot(dir, dir) != 0.0f) {
                     cam.move(glm::normalize(dir), dt);
                 }
@@ -429,33 +439,44 @@ int main() {
                 std::memcpy(buffer_ptr, &cam.get_cam_data(), sizeof(vgl::Cam_data));
                 glUnmapNamedBuffer(cam_ssbo);
             }
-            glBindFramebuffer(GL_FRAMEBUFFER, g_buffer_one.fbo);
-            glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-            glBindVertexArray(model_vao);
-            glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_indirect_buffer);
-            glUseProgram(depth_prepass);
-            glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
-                static_cast<unsigned int>(scene.objects.size()), 0);
-            glDepthFunc(GL_EQUAL);
-            glUseProgram(phong);
-            glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
-                static_cast<unsigned int>(scene.objects.size()), 0);
-            glDepthFunc(GL_LESS);
-            glDisable(GL_DEPTH_TEST);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glBindVertexArray(screen_vao);
-            glProgramUniformHandleui64ARB(screen, glGetUniformLocation(screen, "tex"), vgl::gl::get_texture_handle(g_buffer_one.color));
-            glUseProgram(screen);
-            glDrawArraysInstancedBaseInstance(GL_TRIANGLES, 0, 3, 1, 0);
-            glEnable(GL_DEPTH_TEST);
+            //glBindFramebuffer(GL_FRAMEBUFFER, g_buffer_one.fbo);
+            //glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+            //glUseProgram(depth_prepass);
+            //glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
+                //static_cast<unsigned int>(scene.objects.size()), 0);
+            //glDepthFunc(GL_EQUAL);
+            
+            /*else {
+                glBindVertexArray(model_vao);
+                glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_indirect_buffer);
+                glUseProgram(phong);
+                glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
+                    static_cast<unsigned int>(scene.objects.size()), 0);
+            }*/
+            //glDepthFunc(GL_LESS);
+            //glDisable(GL_DEPTH_TEST);
+            //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            //glBindVertexArray(screen_vao);
+            //glProgramUniformHandleui64ARB(screen, glGetUniformLocation(screen, "tex"), vgl::gl::get_texture_handle(g_buffer_one.color));
+            //glUseProgram(screen);
+            //glDrawArraysInstancedBaseInstance(GL_TRIANGLES, 0, 3, 1, 0);
+            //glEnable(GL_DEPTH_TEST);
             /*glBindVertexArray(debug_vao);
             glUseProgram(aabb_debug);
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             glDrawArraysInstancedBaseInstance(GL_LINES, 0, 2, static_cast<int>(scene.object_bounds.size()), 0);
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-            glUseProgram(lights_debug);
-            glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 4, static_cast<int>(lights.size()), 0);*/
-        }
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);*/
+            glBindVertexArray(model_vao);
+            glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_indirect_buffer);
+            glUseProgram(phong);
+            glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
+                static_cast<unsigned int>(scene.objects.size()), 0);
+            if (window.key[GLFW_KEY_X]) {
+                glBindVertexArray(screen_vao);
+                glUseProgram(raytracing);
+                glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 4, 1, 0);
+            }
+        //}
         gui.render();
         window.swap_buffers();
         if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused()

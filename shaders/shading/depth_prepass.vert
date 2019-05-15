@@ -23,5 +23,5 @@ void main() {
     _uv = uv;
     _mat_id = objects[gl_DrawID].material_id;
     _tex_diffuse = objects[gl_DrawID].texture_diffuse;
-    gl_Position = cam.proj * vec4(cam.rotation * (cam.position + position), 1.0);
+    gl_Position = cam.proj * cam.view * vec4(position, 1.0);
 }

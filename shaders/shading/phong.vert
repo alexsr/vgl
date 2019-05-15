@@ -32,5 +32,5 @@ void main() {
     _mat_id = objects[gl_DrawID].material_id;
     _tex_diffuse = objects[gl_DrawID].texture_diffuse;
     _tex_specular = objects[gl_DrawID].texture_specular;
-    gl_Position = cam.proj * vec4(cam.rotation * (cam.position + _position), 1.0);
+    gl_Position = cam.proj * cam.view * vec4(_position, 1.0);
 }

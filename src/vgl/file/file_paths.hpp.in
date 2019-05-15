@@ -2,7 +2,7 @@
 
 #include <filesystem>
 
-namespace vgl
+namespace vgl::file
 {
     const std::filesystem::path resources_path = "@CMAKE_SOURCE_DIR@/resources/";
     const std::filesystem::path shaders_path = "@CMAKE_SOURCE_DIR@/shaders/";

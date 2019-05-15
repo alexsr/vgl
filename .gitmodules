@@ -27,3 +27,6 @@
 [submodule "external/GLshader"]
 	path = external/GLshader
 	url = https://github.com/johannes-braun/GLshader.git
+[submodule "external/iconfont/iconfont"]
+	path = external/iconfont/iconfont
+	url = https://github.com/juliettef/IconFontCppHeaders.git

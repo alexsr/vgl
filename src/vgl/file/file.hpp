@@ -6,7 +6,7 @@
 #include <fstream>
 #include <future>
 
-namespace vgl
+namespace vgl::file
 {
     bool is_file(const std::filesystem::path& path) {
         return exists(path) && !is_directory(path);

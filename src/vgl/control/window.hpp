@@ -86,6 +86,18 @@ namespace vgl
             return _ptr.reset();
         }
 
+        glm::ivec2 size() {
+            glm::ivec2 size;
+            glfwGetWindowSize(_ptr.get(), &size.x, &size.y);
+            return size;
+        }
+
+        glm::ivec2 framebuffer_size() {
+            glm::ivec2 size;
+            glfwGetFramebufferSize(_ptr.get(), &size.x, &size.y);
+            return size;
+        }
+
         struct callbacks {
             std::map<std::string, win::chr_callback> chr;
             std::map<std::string, win::chrmods_callback> chrmods;

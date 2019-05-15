@@ -52,6 +52,7 @@ add_dependency_subdir(GLshader)
 
 add_header_only_lib(${EXTERNAL_PATH}/stb stb REQUIRED)
 add_header_only_lib(${EXTERNAL_PATH}/catch2/single_include/catch2 catch2 REQUIRED)
+add_header_only_lib(${EXTERNAL_PATH}/iconfont iconfont REQUIRED)
 
 set(GLFW_BUILD_EXAMPLES OFF)
 set(GLFW_BUILD_TESTS OFF)

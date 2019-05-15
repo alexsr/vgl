@@ -18,4 +18,4 @@ target_compile_definitions(vgl
 
 target_compile_features(vgl INTERFACE cxx_std_17)
 target_link_libraries(vgl INTERFACE OpenGL::GL glad::glad glfw::glfw assimp::assimp
-								  stb::stb imgui::imgui glm::glm nativefiledialog jbraun::glsp)
+								  stb::stb imgui::imgui glm::glm nativefiledialog jbraun::glsp iconfont::iconfont)
