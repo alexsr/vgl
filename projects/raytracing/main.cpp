@@ -114,10 +114,12 @@ struct G_buffer {
 int main() {
     auto w_res = glm::ivec2(1600, 900);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+    glfwWindowHint(GLFW_SAMPLES, 4);
     auto window = vgl::window(w_res.x, w_res.y, "Hello");
     window.enable_gl();
     glViewport(0, 0, w_res.x, w_res.y);
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glEnable(GL_MULTISAMPLE);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -333,7 +335,7 @@ int main() {
                     }
                     mesh_loaded = true;
                     indices_buffer = vgl::gl::create_buffer(scene.indices);
-                    struct Vertex {
+                    /*struct Vertex {
                         glm::vec4 pos;
                         glm::vec4 normal;
                         glm::vec2 uv;
@@ -344,22 +346,25 @@ int main() {
                         vertices.at(i).pos = glm::vec4(scene.vertices.at(i).pos, 1.0f);
                         vertices.at(i).normal = glm::vec4(scene.vertices.at(i).normal, 0.0f);
                         vertices.at(i).uv = glm::vec2(scene.vertices.at(i).uv);
-                    }
-                    vertices_buffer = vgl::gl::create_buffer(vertices);
+                    }*/
+                    //vertices_buffer = vgl::gl::create_buffer(vertices);
                     model_vbo = vgl::gl::create_buffer(scene.vertices);
-                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, vertices_buffer);
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, model_vbo);
                     struct Triangle {
                         glm::ivec3 idx;
-                        int pad = 0;
+                        int obj_id = 0;
                     };
                     std::vector<Triangle> triangles(scene.indices.size() / 3);
                     for (int i = 0; i < triangles.size(); i++) {
                         triangles.at(i).idx = { scene.indices.at(i * 3),scene.indices.at(i * 3 + 1), scene.indices.at(i * 3 + 2) };
                     }
+                    int obj_id = 0;
                     for (auto& ob : scene.draw_cmds) {
                         for (int i = ob.first_index / 3; i < (ob.first_index + ob.count) / 3; ++i) {
                             triangles.at(i).idx += ob.base_vertex;
+                            triangles.at(i).obj_id = obj_id;
                         }
+                        obj_id++;
                     }
                     triangle_buffer = vgl::gl::create_buffer(triangles);
                     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, triangle_buffer);
@@ -434,15 +439,13 @@ int main() {
         ImGui::End();
 
         if (lights_added_or_removed) {
-            glDeleteBuffers(1, &lights_ssbo);
-            glFinish();
             lights_ssbo = vgl::gl::create_buffer(lights, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lights_ssbo);
+            glFinish();
         }
         //if (mesh_loaded) {
             const auto lights_ptr = glMapNamedBufferRange(lights_ssbo, 0, sizeof(Light) * lights.size(),
-                GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT |
-                GL_MAP_INVALIDATE_RANGE_BIT);
+                GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
             std::memcpy(lights_ptr, lights.data(), sizeof(Light) * lights.size());
             glUnmapNamedBuffer(lights_ssbo);
             if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused()
@@ -463,8 +466,7 @@ int main() {
                     reload_shaders();
                 }
                 const auto buffer_ptr = glMapNamedBufferRange(cam_ssbo, 0, sizeof(vgl::Cam_data),
-                    GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT |
-                    GL_MAP_INVALIDATE_RANGE_BIT);
+                    GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
                 std::memcpy(buffer_ptr, &cam.get_cam_data(), sizeof(vgl::Cam_data));
                 glUnmapNamedBuffer(cam_ssbo);
             }
@@ -495,16 +497,23 @@ int main() {
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             glDrawArraysInstancedBaseInstance(GL_LINES, 0, 2, static_cast<int>(scene.object_bounds.size()), 0);
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);*/
-            glBindVertexArray(model_vao);
-            glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_indirect_buffer);
-            glUseProgram(phong);
-            glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
-                static_cast<unsigned int>(scene.objects.size()), 0);
             if (window.key[GLFW_KEY_X]) {
                 glBindVertexArray(screen_vao);
                 glUseProgram(raytracing);
                 glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 4, 1, 0);
             }
+            else {
+                glBindVertexArray(model_vao);
+                glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_indirect_buffer);
+                glUseProgram(phong);
+                glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
+                    static_cast<unsigned int>(scene.objects.size()), 0);
+            }
+            glDepthFunc(GL_GREATER);
+            glBindVertexArray(screen_vao);
+            glUseProgram(lights_debug);
+            glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 4, lights.size(), 0);
+            glDepthFunc(GL_LESS);
         //}
         gui.render();
         window.swap_buffers();

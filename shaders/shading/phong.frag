@@ -38,14 +38,13 @@ float blinn_phong_spec(vec3 light_dir, vec3 view_dir, vec3 normal, float shinine
 }
 
 void main() {
-    _color.rgb = vec3(1);
+    _color.rgb = vec3(0);
     if (_mat_id != -1) {
         _color = materials[_mat_id].emissive;
         vec3 specular_color = materials[_mat_id].specular.rgb;
         float shininess = materials[_mat_id].specular.w;
         vec4 diffuse_color = materials[_mat_id].diffuse;
         vec3 normal = normalize(_normal);
-        vec3 pos = _position;
         if (textures.length() > 0) {
             if (_tex_diffuse != -1) {
                 diffuse_color = texture(textures[_tex_diffuse], _uv);
@@ -59,7 +58,7 @@ void main() {
                 shininess = spec.w;
             }
         }
-        vec3 v = normalize(_cam_pos - pos);
+        vec3 v = normalize(_cam_pos - _position);
         for (int i = 0; i < lights.length(); i++) {
             vec3 pos_to_light = lights[i].pos.xyz - _position;
             float dist2 = dot(pos_to_light, pos_to_light);
@@ -89,11 +88,12 @@ void main() {
             else if (lights[i].type == 3) {
                 vec3 pos_to_light_norm = normalize(pos_to_light);
                 vec3 light_dir = normalize(lights[i].dir.xyz);
-                float angle = dot(light_dir, -pos_to_light_norm);
-                if (angle > lights[i].outer_cutoff) {
-                    cos_phi = dot(pos_to_light_norm, normal);
+                float cos_angle = dot(light_dir, -pos_to_light_norm);
+                if (cos_angle > lights[i].outer_cutoff) {
+                    float soft_factor = smoothstep(0.0, mix(0.0, 0.1, 1 - cos_angle + 0.01), cos_angle - lights[i].outer_cutoff);
+                    cos_phi = soft_factor * dot(pos_to_light_norm, normal);
                     if (shininess != 0) {
-                        cos_psi_n = blinn_phong_spec(pos_to_light_norm, v, normal, shininess);
+                        cos_psi_n = soft_factor * blinn_phong_spec(pos_to_light_norm, v, normal, shininess);
                     }
                 }
             }

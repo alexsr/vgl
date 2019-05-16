@@ -41,12 +41,10 @@ in vec4 Frag_Color;
 in flat int draw_id;
 out vec4 Out_Color;
 
-layout (std430, binding = 0) buffer tex_ref_buffer {
-    sampler2D textures[];
-};
+layout (location = 1) uniform sampler2D tex;
 
 void main() {
-    Out_Color = Frag_Color * texture(textures[draw_id], Frag_UV.st);
+    Out_Color = Frag_Color * texture(tex, Frag_UV.st);
 })";
     }
 
@@ -150,15 +148,21 @@ void main() {
             _vao_handle = vgl::gl::create_vertex_array();
             _vbo_handle = vgl::gl::create_buffer();
             _ebo_handle = vgl::gl::create_buffer();
-            glEnableVertexArrayAttrib(_vao_handle, 0);
-            glEnableVertexArrayAttrib(_vao_handle, 1);
-            glEnableVertexArrayAttrib(_vao_handle, 2);
-            glVertexArrayAttribFormat(_vao_handle, 0, 2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, pos));
-            glVertexArrayAttribFormat(_vao_handle, 1, 2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, uv));
-            glVertexArrayAttribFormat(_vao_handle, 2, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(ImDrawVert, col));
-            glVertexArrayAttribBinding(_vao_handle, 0, 0);
-            glVertexArrayAttribBinding(_vao_handle, 1, 0);
-            glVertexArrayAttribBinding(_vao_handle, 2, 0);
+            glGenBuffers(1, &_vbo_handle);
+            glGenBuffers(1, &_ebo_handle);
+            glGenVertexArrays(1, &_vao_handle);
+            glBindVertexArray(_vao_handle);
+            glBindBuffer(GL_ARRAY_BUFFER, _vbo_handle);
+            glEnableVertexAttribArray(0);
+            glEnableVertexAttribArray(1);
+            glEnableVertexAttribArray(2);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert),
+                reinterpret_cast<GLvoid*>(IM_OFFSETOF(ImDrawVert, pos)));
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert),
+                reinterpret_cast<GLvoid*>(IM_OFFSETOF(ImDrawVert, uv)));
+            glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert),
+                reinterpret_cast<GLvoid*>(IM_OFFSETOF(ImDrawVert, col)));
+
         }
         Gui(const Gui&) = delete;
         Gui& operator=(const Gui&) = delete;
@@ -228,24 +232,19 @@ void main() {
             if (fb_width <= 0 || fb_height <= 0) {
                 return;
             }
-            int vertex_buffer_size = 0;
-            unsigned int index_buffer_size = 0;
-            for (int n = 0; n < draw_data->CmdListsCount; n++) {
-                const ImDrawList* cmd_list = draw_data->CmdLists[n];
-                index_buffer_size += cmd_list->IdxBuffer.size_in_bytes();
-                vertex_buffer_size += cmd_list->VtxBuffer.size_in_bytes();
-            }
-            if (index_buffer_size == 0 || vertex_buffer_size == 0) {
-                return;
-            }
 
             // Backup GL state
+            GLenum last_active_texture;
+            glGetIntegerv(GL_ACTIVE_TEXTURE, reinterpret_cast<GLint*>(&last_active_texture));
+            glActiveTexture(GL_TEXTURE0);
             GLint ssbo_last_binding;
             glGetIntegeri_v(GL_SHADER_STORAGE_BUFFER_BINDING, 0, &ssbo_last_binding);
             GLint draw_indirect_binding;
             glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &draw_indirect_binding);
             GLint last_polygon_mode[2];
             glGetIntegerv(GL_POLYGON_MODE, last_polygon_mode);
+            GLint last_scissor_box[4];
+            glGetIntegerv(GL_SCISSOR_BOX, last_scissor_box);
             GLenum last_blend_src_rgb;
             glGetIntegerv(GL_BLEND_SRC_RGB, reinterpret_cast<GLint*>(&last_blend_src_rgb));
             GLenum last_blend_dst_rgb;
@@ -262,6 +261,7 @@ void main() {
             const auto last_enable_cull_face = glIsEnabled(GL_CULL_FACE);
             const auto last_enable_depth_test = glIsEnabled(GL_DEPTH_TEST);
             const auto last_enable_scissor_test = glIsEnabled(GL_SCISSOR_TEST);
+
             std::array<GLint, 4> previous_viewport;
             glGetIntegerv(GL_VIEWPORT, previous_viewport.data());
 
@@ -274,55 +274,8 @@ void main() {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             glDisable(GL_CULL_FACE);
             glDisable(GL_DEPTH_TEST);
+            glEnable(GL_SCISSOR_TEST);
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-            const auto pos = draw_data->DisplayPos;
-            _ebo_handle = vgl::gl::create_buffer();
-            gl::set_empty_buffer_storage(_ebo_handle, index_buffer_size, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
-            _vbo_handle = vgl::gl::create_buffer();
-            gl::set_empty_buffer_storage(_vbo_handle, vertex_buffer_size, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
-            std::vector<gl::Indirect_elements_command> draw_cmds;
-            std::vector<GLuint64> textures;
-            vertex_buffer_size = 0;
-            index_buffer_size = 0;
-            unsigned int current_base_vertex = 0;
-            unsigned int current_draw_count = 0;
-            for (int n = 0; n < draw_data->CmdListsCount; n++) {
-                const ImDrawList* cmd_list = draw_data->CmdLists[n];
-                const auto v_buffer_ptr = glMapNamedBufferRange(_vbo_handle, vertex_buffer_size, cmd_list->VtxBuffer.size_in_bytes(),
-                    GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
-                std::memcpy(v_buffer_ptr, cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.size_in_bytes());
-                glUnmapNamedBuffer(_vbo_handle);
-                vertex_buffer_size += cmd_list->VtxBuffer.size_in_bytes();
-                const auto i_buffer_ptr = glMapNamedBufferRange(_ebo_handle, index_buffer_size, cmd_list->IdxBuffer.size_in_bytes(),
-                    GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
-                std::memcpy(i_buffer_ptr, cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.size_in_bytes());
-                glUnmapNamedBuffer(_ebo_handle);
-                index_buffer_size += cmd_list->IdxBuffer.size_in_bytes();
-                for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++) {
-                    auto pcmd = &cmd_list->CmdBuffer[cmd_i];
-                    if (pcmd->UserCallback) {
-                        // User callback (registered via ImDrawList::AddCallback)
-                        pcmd->UserCallback(cmd_list, pcmd);
-                    }
-                    else {
-                        const auto clip_rect = ImVec4(pcmd->ClipRect.x - pos.x, pcmd->ClipRect.y - pos.y,
-                            pcmd->ClipRect.z - pos.x, pcmd->ClipRect.w - pos.y);
-                        if (clip_rect.x < fb_width && clip_rect.y < fb_height && clip_rect.z >= 0.0f && clip_rect.w >= 0.0f) {
-                            textures.push_back(gl::get_texture_handle(static_cast<GLuint>(reinterpret_cast<intptr_t>(pcmd->TextureId))));
-                            draw_cmds.push_back(gl::Indirect_elements_command{ pcmd->ElemCount, 1, current_draw_count, current_base_vertex, 0 });
-                        }
-                    }
-                    current_draw_count += pcmd->ElemCount;
-                }
-                current_base_vertex += cmd_list->VtxBuffer.Size;
-            }
-            auto draw_indirect_buffer = vgl::gl::create_buffer(draw_cmds);
-            glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_indirect_buffer);
-            auto tex_buffer = gl::create_buffer(textures);
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, tex_buffer);
-            glVertexArrayElementBuffer(_vao_handle, _ebo_handle);
-            glVertexArrayVertexBuffer(_vao_handle, 0, _vbo_handle, 0, sizeof(ImDrawVert));
 
             const auto l = draw_data->DisplayPos.x;
             const auto r = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
@@ -337,10 +290,47 @@ void main() {
             };
             glUseProgram(_program);
             gl::update_uniform(_program, 0, ortho_projection);
+            gl::update_uniform(_program, 1, 0);
             glBindVertexArray(_vao_handle);
+            // Draw
+            const auto pos = draw_data->DisplayPos;
+            for (int n = 0; n < draw_data->CmdListsCount; n++) {
+                const ImDrawList* cmd_list = draw_data->CmdLists[n];
+                const ImDrawIdx* idx_buffer_offset = nullptr;
 
-            glMultiDrawElementsIndirect(GL_TRIANGLES, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, nullptr,
-                static_cast<unsigned int>(draw_cmds.size()), 0);
+                glBindBuffer(GL_ARRAY_BUFFER, _vbo_handle);
+                glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(cmd_list->VtxBuffer.Size) * sizeof(ImDrawVert),
+                    static_cast<const GLvoid*>(cmd_list->VtxBuffer.Data), GL_STREAM_DRAW);
+
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo_handle);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(cmd_list->IdxBuffer.Size) * sizeof(ImDrawIdx),
+                    static_cast<const GLvoid*>(cmd_list->IdxBuffer.Data), GL_STREAM_DRAW);
+
+                for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++) {
+                    auto pcmd = &cmd_list->CmdBuffer[cmd_i];
+                    if (pcmd->UserCallback) {
+                        // User callback (registered via ImDrawList::AddCallback)
+                        pcmd->UserCallback(cmd_list, pcmd);
+                    }
+                    else {
+                        const auto clip_rect = ImVec4(pcmd->ClipRect.x - pos.x, pcmd->ClipRect.y - pos.y,
+                            pcmd->ClipRect.z - pos.x,
+                            pcmd->ClipRect.w - pos.y);
+                        if (clip_rect.x < fb_width && clip_rect.y < fb_height && clip_rect.z >= 0.0f && clip_rect.w >= 0.0f) {
+                            // Apply scissor/clipping rectangle
+                            glScissor(static_cast<int>(clip_rect.x), static_cast<int>(fb_height - clip_rect.w),
+                                static_cast<int>(clip_rect.z - clip_rect.x),
+                                static_cast<int>(clip_rect.w - clip_rect.y));
+
+                            // Bind texture, Draw
+                            glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(reinterpret_cast<intptr_t>(pcmd->TextureId)));
+                            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(pcmd->ElemCount),
+                                sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
+                        }
+                    }
+                    idx_buffer_offset += pcmd->ElemCount;
+                }
+            }
 
             // Restore modified GL state
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo_last_binding);
@@ -353,8 +343,13 @@ void main() {
             else glDisable(GL_CULL_FACE);
             if (last_enable_depth_test) glEnable(GL_DEPTH_TEST);
             else glDisable(GL_DEPTH_TEST);
+            if (last_enable_scissor_test) glEnable(GL_SCISSOR_TEST);
+            else glDisable(GL_SCISSOR_TEST);
+            glScissor(last_scissor_box[0], last_scissor_box[1], static_cast<GLsizei>(last_scissor_box[2]),
+                static_cast<GLsizei>(last_scissor_box[3]));
             glPolygonMode(GL_FRONT_AND_BACK, static_cast<GLenum>(last_polygon_mode[0]));
             glViewport(previous_viewport[0], previous_viewport[1], previous_viewport[2], previous_viewport[3]);
+
         }
 
         void setup_fonts(float font_size) {
@@ -392,9 +387,9 @@ void main() {
     private:
         gl::glprogram _program;
         gl::gltexture _font_texture;
-        gl::glbuffer _vbo_handle{};
-        gl::glbuffer _ebo_handle{};
         gl::glvertexarray _vao_handle{};
+        gl::glbuffer _vbo_handle;
+        gl::glbuffer _ebo_handle;
         std::array<GLFWcursor*, ImGuiMouseCursor_COUNT> _mouse_cursors{};
         double _time;
         GLFWwindow* _window_ptr;

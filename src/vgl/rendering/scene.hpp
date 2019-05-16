@@ -34,7 +34,7 @@ namespace vgl
         int pad2;
     };
 
-    inline bool operator==(const Vertex& v, const glm::vec3& p) {
+    inline bool operator==(const Vertex& v, const glm::vec4& p) {
         return v.pos == p;
     }
 
@@ -49,7 +49,7 @@ namespace vgl
         std::vector<Texture_info> textures;
 
         void move_to_center() {
-            auto center = glm::vec3(scene_bounds.min + scene_bounds.max) / 2.0f;
+            auto center = glm::vec4(scene_bounds.min + scene_bounds.max) / 2.0f;
             scene_bounds.min -= center;
             scene_bounds.max -= center;
             std::for_each(std::execution::par, vertices.begin(), vertices.end(), [&center](Vertex & v) {
@@ -184,14 +184,14 @@ namespace vgl
             Bounds bounds{};
             for (int i = 0; i < static_cast<int>(ai_mesh->mNumVertices); i++) {
                 auto scene_i = start_vertices.at(m) + i;
-                scene.vertices[scene_i].pos = reinterpret_cast<glm::vec3&>(ai_mesh->mVertices[i]);
+                scene.vertices[scene_i].pos = glm::vec4(reinterpret_cast<glm::vec3&>(ai_mesh->mVertices[i]), 1.0f);
                 bounds.min = glm::min(bounds.min, scene.vertices[scene_i].pos);
                 bounds.max = glm::max(bounds.max, scene.vertices[scene_i].pos);
                 if (ai_mesh->HasNormals()) {
-                    scene.vertices[scene_i].normal = reinterpret_cast<glm::vec3&>(ai_mesh->mNormals[i]);
+                    scene.vertices[scene_i].normal = glm::vec4(reinterpret_cast<glm::vec3&>(ai_mesh->mNormals[i]), 0.0f);
                 }
                 if (ai_mesh->HasTextureCoords(0)) {
-                    scene.vertices[scene_i].uv = reinterpret_cast<glm::vec2&>(ai_mesh->mTextureCoords[0][i]);
+                    scene.vertices[scene_i].uv = glm::vec4(reinterpret_cast<glm::vec2&>(ai_mesh->mTextureCoords[0][i]), 0.0f, 0.0f);
                 }
             }
             scene.object_bounds.at(m) = bounds;

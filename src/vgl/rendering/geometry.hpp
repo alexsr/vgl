@@ -6,17 +6,17 @@
 namespace vgl
 {
     struct Vertex {
-        glm::vec3 pos{};
-        glm::vec3 normal{};
-        glm::vec2 uv{};
+        glm::vec4 pos{};
+        glm::vec4 normal{};
+        glm::vec4 uv{};
     };
 
     struct Bounds;
     Bounds calc_bounds(const std::vector<Vertex>& vertices);
 
     struct Bounds {
-        glm::vec3 min{std::numeric_limits<float>::max()};
-        glm::vec3 max{std::numeric_limits<float>::lowest()};
+        glm::vec4 min{std::numeric_limits<float>::max()};
+        glm::vec4 max{std::numeric_limits<float>::lowest()};
 
         inline void join(const Bounds& b) {
             min = glm::min(min, b.min);

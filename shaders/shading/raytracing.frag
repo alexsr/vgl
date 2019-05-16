@@ -7,6 +7,8 @@ layout (location = 1) in vec3 _ray_dir;
 #include "../include/cam.glsl"
 #include "../include/light.glsl"
 #include "../include/vertex.glsl"
+#include "../include/scene_object.glsl"
+#include "../include/material.glsl"
 
 layout (std430, binding = CAM_BINDING) buffer cam_buffer {
     Camera cam;
@@ -14,7 +16,7 @@ layout (std430, binding = CAM_BINDING) buffer cam_buffer {
 
 struct Triangle {
     ivec3 idx;
-    int pad;
+    int obj_id;
 };
 
 layout (std430, binding = TRIANGLES_BINDING) buffer triangle_buffer {
@@ -27,6 +29,14 @@ layout (std430, binding = VERTICES_BINDING) buffer vertex_buffer {
 
 layout (std430, binding = LIGHTS_BINDING) buffer light_buffer {
     Light lights[];
+};
+
+layout (std430, binding = SCENE_OBJECT_BINDING) buffer scene_object_buffer {
+    Scene_object objects[];
+};
+
+layout (std430, binding = MATERIAL_BINDING) buffer material_buffer {
+    Material materials[];
 };
 
 layout (location = 0) out vec4 _color;
@@ -61,6 +71,18 @@ bool rayTriangleIntersect(const ray r, Vertex v0, Vertex v1, Vertex v2, inout fl
         return false;
 }
 
+bool any_hit(const ray r, float t_near) {
+    float u, v, t = 0.0;
+    for (int i = 0; i < triangles.length(); ++i) {
+        ivec3 idx = triangles[i].idx;
+        if (rayTriangleIntersect(r, vertices[idx.x], vertices[idx.y], vertices[idx.z], t, u, v)) {
+            if (t < t_near)
+            return true;
+        }
+    }
+    return false;
+}
+
 float blinn_phong_spec(vec3 light_dir, vec3 view_dir, vec3 normal, float shininess) {
     vec3 halfway_dir = normalize(light_dir + view_dir);
     return pow(max(dot(normal, halfway_dir), 0), shininess);
@@ -88,19 +110,19 @@ void main() {
     _color.rgb = vec3(0);
     if (hit != -1) {
         vec3 p = cam.position + t_min * normalize(_ray_dir);
+        vec3 shadow_p = p + n * 0.0001;
         vec3 v = -normalize(_ray_dir);
         float shininess = 10.0f;
-        for (int i = 0; i < 1; i++) {
-            vec3 pos_to_light = lights[i].pos.xyz - p;
-            float dist2 = dot(pos_to_light, pos_to_light);
-            float dist = sqrt(dist2);
-            float attenuation = 1.0 / (lights[i].attenuation.constant + lights[i].attenuation.linear * dist
-                + dist2 * lights[i].attenuation.quadratic);
+        for (int i = 0; i < lights.length(); i++) {
+            vec3 pos_to_light = lights[i].pos.xyz - shadow_p;
+            vec3 pos_to_light_norm = normalize(pos_to_light);
+            if (any_hit(ray(pos_to_light_norm, shadow_p), length(pos_to_light))) {
+                continue;
+            }
             vec4 light_color = lights[i].color;
             
-            vec3 pos_to_light_norm = normalize(pos_to_light);
             float cos_phi = max(dot(pos_to_light_norm, n), 0.0);
-            _color.rgb = light_color.rgb * cos_phi * p;
+            _color.rgb += light_color.rgb * cos_phi * materials[objects[triangles[hit].obj_id].material_id].diffuse.rgb;
         }
     }
 }

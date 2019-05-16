@@ -218,7 +218,6 @@ int main() {
 
     G_buffer g_buffer_one{};
 
-
     glm::ivec2 fb_res;
     glfwGetFramebufferSize(window.get(), &fb_res.x, &fb_res.y);
 
@@ -232,7 +231,9 @@ int main() {
     window.cbs.framebuffer_size["resize"] = [&](GLFWwindow*, int x, int y) {
         fb_res.x = x;
         fb_res.y = y;
-        g_buffer_one.init(fb_res);
+        if (fb_res.x > 0 && fb_res.y > 0) {
+            g_buffer_one.init(fb_res);
+        }
     };
 
     auto debug_vao = vgl::gl::create_vertex_array();
@@ -267,6 +268,7 @@ int main() {
     int frames = 0;
     float ms_p_f = 0.0f;
     while (!window.should_close()) {
+        gui.start_frame();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         dt = std::chrono::duration<float>(current - previous).count();
         accumulator += dt;
@@ -275,10 +277,13 @@ int main() {
             frames = 0;
             accumulator = 0.0;
         }
+        if (ImGui::Begin("Runtime")) {
+            ImGui::Text("Milliseconds per frame: %f", ms_p_f);
+        }
+        ImGui::End();
         frames++;
         previous = current;
         current = high_res_clock::now();
-        gui.start_frame();
         bool lights_added_or_removed = false;
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::MenuItem("Load Mesh")) {
@@ -393,7 +398,6 @@ int main() {
         ImGui::End();
 
         if (lights_added_or_removed) {
-            glDeleteBuffers(1, &lights_ssbo);
             glFinish();
             lights_ssbo = vgl::gl::create_buffer(lights, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lights_ssbo);
@@ -406,9 +410,9 @@ int main() {
             glUnmapNamedBuffer(lights_ssbo);
             if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused()
                 && !ImGui::IsAnyItemActive()) {
-                glm::vec3 dir(static_cast<float>(window.key[GLFW_KEY_A]) - static_cast<float>(window.key[GLFW_KEY_D]),
+                glm::vec3 dir(static_cast<float>(window.key[GLFW_KEY_D]) - static_cast<float>(window.key[GLFW_KEY_A]),
                     static_cast<float>(window.key[GLFW_KEY_E]) - static_cast<float>(window.key[GLFW_KEY_Q]),
-                    static_cast<float>(window.key[GLFW_KEY_W]) - static_cast<float>(window.key[GLFW_KEY_S]));
+                    static_cast<float>(window.key[GLFW_KEY_S]) - static_cast<float>(window.key[GLFW_KEY_W]));
                 if (dot(dir, dir) != 0.0f) {
                     cam.move(glm::normalize(dir), dt);
                 }
@@ -427,6 +431,8 @@ int main() {
                 std::memcpy(buffer_ptr, &cam.get_cam_data(), sizeof(vgl::Cam_data));
                 glUnmapNamedBuffer(cam_ssbo);
             }
+            glEnable(GL_CULL_FACE);
+            glCullFace(GL_BACK);
             glBindFramebuffer(GL_FRAMEBUFFER, g_buffer_one.fbo);
             glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
             glBindVertexArray(model_vao);
