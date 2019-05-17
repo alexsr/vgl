@@ -6,16 +6,21 @@ endif()
 
 configure_file(${SRC_PATH}/vgl/file/file_paths.hpp.in ${SRC_PATH}/vgl/file/file_paths.hpp @ONLY)
 
-add_library(vgl INTERFACE)
+add_library(vgl
+	vgl/file/stb_impl.cpp
+	vgl/control/gui.cpp)
+
 target_include_directories(vgl
-	INTERFACE ${SRC_PATH})
+	PUBLIC
+		$<BUILD_INTERFACE:${SRC_PATH}>)
+
 
 target_compile_definitions(vgl
-    INTERFACE 
+    PUBLIC 
         GLFW_INCLUDE_NONE
         GLM_FORCE_RADIANS
         GLM_ENABLE_EXPERIMENTAL)
 
-target_compile_features(vgl INTERFACE cxx_std_17)
-target_link_libraries(vgl INTERFACE OpenGL::GL glad::glad glfw::glfw assimp::assimp
-								  stb::stb imgui::imgui glm::glm nativefiledialog jbraun::glsp iconfont::iconfont)
+target_compile_features(vgl PUBLIC cxx_std_17)
+target_link_libraries(vgl PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp stb::stb
+					  imgui::imgui glm::glm nativefiledialog jbraun::glsp iconfont::iconfont)

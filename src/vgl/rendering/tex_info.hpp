@@ -13,7 +13,7 @@ namespace vgl {
         GLenum internal_format;
     };
 
-    Texture_format gen_tex_format(int channels, GLenum type) {
+    inline Texture_format gen_tex_format(int channels, GLenum type) {
         Texture_format f{};
         switch (channels) {
         case 1:

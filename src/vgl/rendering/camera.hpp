@@ -14,7 +14,7 @@ namespace vgl {
     };
 
     struct Camera {
-        Cam_data get_cam_data() {
+        inline Cam_data get_cam_data() {
             Cam_data data;
             data.view = glm::translate(get_rotation(), -position);
             data.position = get_position();
@@ -53,7 +53,7 @@ namespace vgl {
         glm::quat rotation{ 1, 0, 0, 0 };
         glm::mat4 projection;
         float move_speed = 1.0f;
-        float rotation_speed = 1.0f;
+        float rotation_speed = 3.0f;
     private:
         glm::vec2 _angles{}; 
     };

@@ -13,7 +13,7 @@ namespace vgl {
         glm::vec4 transparent{ 0.0f };
     };
 
-    Material process_material(aiMaterial* ai_mat) {
+    inline Material process_material(aiMaterial* ai_mat) {
         Material mat{};
         ai_mat->Get(AI_MATKEY_COLOR_AMBIENT, reinterpret_cast<aiColor4D&>(mat.ambient));
         ai_mat->Get(AI_MATKEY_COLOR_DIFFUSE, reinterpret_cast<aiColor4D&>(mat.diffuse));

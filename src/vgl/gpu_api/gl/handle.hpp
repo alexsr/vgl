@@ -15,25 +15,25 @@ namespace vgl::gl {
             handle(const handle& h) = delete;
             handle(handle&& h) noexcept : _id(std::exchange(h._id, 0)) {}
             handle& operator=(const handle& h) = delete;
-            handle& operator=(handle&& h) noexcept {
+            inline handle& operator=(handle&& h) noexcept {
                 std::swap(_id, h._id);
                 return *this;
             }
-            operator GLuint() const {
+            inline operator GLuint() const {
                 return _id;
             }
-            handle& operator=(GLuint id) {
+            inline handle& operator=(GLuint id) {
                 D(_id);
                 _id = id;
                 return *this;
             }
-            GLuint* operator&() {
+            inline GLuint* operator&() {
                 return &_id;
             }
-            GLuint id() const {
+            inline GLuint id() const {
                 return _id;
             }
-            void reset() {
+            inline void reset() {
                 D(_id);
                 _id = 0;
             }
@@ -44,12 +44,12 @@ namespace vgl::gl {
             GLuint _id;
         };
     }
-    void delete_buffer(GLuint id) {
+    inline void delete_buffer(GLuint id) {
         if (glIsBuffer(id)) {
             glDeleteBuffers(1, &id);
         }
     }
-    void delete_texture(GLuint id) {
+    inline void delete_texture(GLuint id) {
         if (glIsTexture(id)) {
             const auto handle = glGetTextureHandleARB(id);
             if (glIsTextureHandleResidentARB(handle)) {
@@ -58,32 +58,32 @@ namespace vgl::gl {
             glDeleteTextures(1, &id);
         }
     }
-    void delete_shader(GLuint id) {
+    inline void delete_shader(GLuint id) {
         if (glIsShader(id)) {
             glDeleteShader(id);
         }
     }
-    void delete_program(GLuint id) {
+    inline void delete_program(GLuint id) {
         if (glIsProgram(id)) {
             glDeleteProgram(id);
         }
     }
-    void delete_sampler(GLuint id) {
+    inline void delete_sampler(GLuint id) {
         if (glIsSampler(id)) {
             glDeleteSamplers(1, &id);
         }
     }
-    void delete_framebuffer(GLuint id) {
+    inline void delete_framebuffer(GLuint id) {
         if (glIsFramebuffer(id)) {
             glDeleteFramebuffers(1, &id);
         }
     }
-    void delete_vertex_array(GLuint id) {
+    inline void delete_vertex_array(GLuint id) {
         if (glIsVertexArray(id)) {
             glDeleteVertexArrays(1, &id);
         }
     }
-    void delete_query(GLuint id) {
+    inline void delete_query(GLuint id) {
         if (glIsQuery(id)) {
             glDeleteQueries(1, &id);
         }

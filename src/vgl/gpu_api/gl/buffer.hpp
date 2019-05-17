@@ -16,7 +16,7 @@ namespace vgl::gl
         glNamedBufferStorage(buffer, sizeof(T), &data, bitfield);
     }
 
-    void set_empty_buffer_storage(const glbuffer& buffer, size_t size, GLenum bitfield = 0) {
+    inline void set_empty_buffer_storage(const glbuffer& buffer, size_t size, GLenum bitfield = 0) {
         glNamedBufferStorage(buffer, size, nullptr, bitfield);
     }
 
@@ -50,7 +50,7 @@ namespace vgl::gl
         return handle;
     }
 
-    glbuffer create_buffer() {
+    inline glbuffer create_buffer() {
         GLuint buffer = 0;
         glCreateBuffers(1, &buffer);
         return buffer;

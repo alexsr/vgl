@@ -7,7 +7,7 @@
 #include <string>
 
 namespace vgl::gl {
-    void compile_shader(const GLuint shader) {
+    inline void compile_shader(const GLuint shader) {
         glCompileShader(shader);
         GLint compile_status = 0;
         glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_status);
@@ -25,7 +25,7 @@ namespace vgl::gl {
         }
     }
 
-    glshader create_shader(const GLenum type, const std::string& source) {
+    inline glshader create_shader(const GLenum type, const std::string& source) {
         const GLuint shader = glCreateShader(type);
         const GLchar* source_ptr = source.data();
         auto size = static_cast<GLint>(source.size());
@@ -34,7 +34,7 @@ namespace vgl::gl {
         return shader;
     }
 
-    glshader create_shader(const GLenum type, const char* source, size_t size) {
+    inline glshader create_shader(const GLenum type, const char* source, size_t size) {
         const GLuint shader = glCreateShader(type);
         auto size_i = static_cast<GLint>(size);
         glShaderSource(shader, 1, &source, &size_i);
@@ -42,19 +42,19 @@ namespace vgl::gl {
         return shader;
     }
 
-    void attach_shaders(GLuint program, std::initializer_list<GLuint> shaders) {
+    inline void attach_shaders(GLuint program, std::initializer_list<GLuint> shaders) {
         for (auto s : shaders) {
             glAttachShader(program, s);
         }
     }
 
-    void detach_shaders(GLuint program, std::initializer_list<GLuint> shaders) {
+    inline void detach_shaders(GLuint program, std::initializer_list<GLuint> shaders) {
         for (auto s : shaders) {
             glDetachShader(program, s);
         }
     }
 
-    void link_program(GLuint program) {
+    inline void link_program(GLuint program) {
         glLinkProgram(program);
         GLint link_status = 0;
         glGetProgramiv(program, GL_LINK_STATUS, &link_status);
@@ -73,7 +73,7 @@ namespace vgl::gl {
         }
     }
 
-    glprogram create_program(std::initializer_list<GLuint> shaders) {
+    inline glprogram create_program(std::initializer_list<GLuint> shaders) {
         const GLuint program = glCreateProgram();
         attach_shaders(program, shaders);
         link_program(program);

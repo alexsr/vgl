@@ -31,7 +31,7 @@ namespace vgl
         }
     };
 
-    Bounds calc_bounds(const std::vector<Vertex>& vertices) {
+    inline Bounds calc_bounds(const std::vector<Vertex>& vertices) {
         Bounds bounds{};
         for (auto& v : vertices) {
             bounds.min = glm::min(v.pos, bounds.min);

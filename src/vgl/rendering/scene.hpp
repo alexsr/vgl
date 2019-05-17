@@ -48,7 +48,7 @@ namespace vgl
         std::vector<Material> materials;
         std::vector<Texture_info> textures;
 
-        void move_to_center() {
+        inline void move_to_center() {
             auto center = glm::vec4(scene_bounds.min + scene_bounds.max) / 2.0f;
             scene_bounds.min -= center;
             scene_bounds.max -= center;
@@ -62,23 +62,11 @@ namespace vgl
         }
     };
 
-    glm::vec2 to_glm_vec2(const aiVector3D & v) {
-        return glm::vec2(v.x, v.y);
-    }
-
-    glm::vec3 to_glm_vec3(const aiVector3D & v) {
-        return glm::vec3(v.x, v.y, v.z);
-    }
-
-    glm::vec4 to_glm_vec4(const aiVector3D & v, float w = 1.0f) {
-        return glm::vec4(v.x, v.y, v.z, w);
-    }
-
     constexpr unsigned int aiprocess_flags = aiProcess_ImproveCacheLocality
         | aiProcess_FindDegenerates | aiProcess_FindInvalidData | aiProcess_RemoveRedundantMaterials |
         aiProcess_GenSmoothNormals | aiProcess_Triangulate | aiProcess_GenUVCoords | aiProcess_SortByPType;
 
-    Scene load_scene(const std::filesystem::path & file_path, bool move_to_center = false, bool load_materials = true, bool load_textures = true) {
+    inline Scene load_scene(const std::filesystem::path & file_path, bool move_to_center = false, bool load_materials = true, bool load_textures = true) {
         if (!file::is_file(file_path)) {
             throw std::runtime_error{ "File not found." }; // TODO
         }

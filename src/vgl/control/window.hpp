@@ -33,9 +33,9 @@ namespace vgl
         using window_size_callback = std::function<void(GLFWwindow*, int, int)>;
     }
 
-    class window {
+    class Window {
     public:
-        window(int width, int height, const std::string& title, GLFWmonitor* monitor = nullptr,
+        inline Window(int width, int height, const std::string& title, GLFWmonitor* monitor = nullptr,
                GLFWwindow* share = nullptr) {
             if (_count == 0) {
                 glfwInit();
@@ -57,7 +57,7 @@ namespace vgl
             };
         }
 
-        void enable_gl(int major = 4, int minor = 6) const {
+        inline void enable_gl(int major = 4, int minor = 6) const {
             glfwMakeContextCurrent(_ptr.get());
             if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
                 throw std::runtime_error{"Failed to initialize OpenGL."};
@@ -66,33 +66,33 @@ namespace vgl
             glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, minor);
         }
 
-        void poll_events() {
+        inline void poll_events() {
             cursor_delta = glm::dvec2(0.0);
             glfwPollEvents();
         }
 
-        void swap_buffers() const {
+        inline void swap_buffers() const {
             glfwSwapBuffers(_ptr.get());
         }
 
-        bool should_close() const {
+        inline bool should_close() const {
             return glfwWindowShouldClose(_ptr.get());
         }
 
-        GLFWwindow* get() const {
+        inline GLFWwindow* get() const {
             return _ptr.get();
         }
-        void close() {
+        inline void close() {
             return _ptr.reset();
         }
 
-        glm::ivec2 size() {
+        inline glm::ivec2 size() {
             glm::ivec2 size;
             glfwGetWindowSize(_ptr.get(), &size.x, &size.y);
             return size;
         }
 
-        glm::ivec2 framebuffer_size() {
+        inline glm::ivec2 framebuffer_size() {
             glm::ivec2 size;
             glfwGetFramebufferSize(_ptr.get(), &size.x, &size.y);
             return size;
@@ -123,90 +123,90 @@ namespace vgl
         glm::dvec2 cursor_pos{};
         glm::dvec2 cursor_delta{};
     private:
-        void init_callbacks(GLFWwindow* ptr) {
+        inline void init_callbacks(GLFWwindow* ptr) {
             glfwSetWindowUserPointer(ptr, static_cast<void*>(this));
             glfwSetCharCallback(ptr, [](GLFWwindow* w, const unsigned c) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.chr) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.chr) {
                     func(w, c);
                 }
             });
             glfwSetCharModsCallback(ptr, [](GLFWwindow* w, const unsigned c, const int m) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.chrmods) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.chrmods) {
                     func(w, c, m);
                 }
             });
             glfwSetCursorEnterCallback(ptr, [](GLFWwindow* w, const int e) {
-                for (auto& [k,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.cursor_enter) {
+                for (auto& [k,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.cursor_enter) {
                     func(w, e);
                 }
             });
             glfwSetCursorPosCallback(ptr, [](GLFWwindow* w, const double x, const double y) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.cursor_pos) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.cursor_pos) {
                     func(w, x, y);
                 }
             });
             glfwSetDropCallback(ptr, [](GLFWwindow* w, const int c, const char** f) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.drop) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.drop) {
                     func(w, c, f);
                 }
             });
             glfwSetFramebufferSizeCallback(ptr, [](GLFWwindow* w, const int x, const int y) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.framebuffer_size) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.framebuffer_size) {
                     func(w, x, y);
                 }
             });
             glfwSetKeyCallback(ptr, [](GLFWwindow* w, const int k, const int s, const int a, const int m) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.key) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.key) {
                     func(w, k, s, a, m);
                 }
             });
             glfwSetMouseButtonCallback(ptr, [](GLFWwindow* w, const int k, const int a, const int m) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.mouse) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.mouse) {
                     func(w, k, a, m);
                 }
             });
             glfwSetScrollCallback(ptr, [](GLFWwindow* w, const double x, const double y) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.scroll) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.scroll) {
                     func(w, x, y);
                 }
             });
             glfwSetWindowCloseCallback(ptr, [](GLFWwindow* w) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.window_close) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.window_close) {
                     func(w);
                 }
             });
             glfwSetWindowContentScaleCallback(ptr, [](GLFWwindow* w, const float x, const float y) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.window_content_scale) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.window_content_scale) {
                     func(w, x, y);
                 }
             });
             glfwSetWindowFocusCallback(ptr, [](GLFWwindow* w, const int f) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.window_focus) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.window_focus) {
                     func(w, f);
                 }
             });
             glfwSetWindowIconifyCallback(ptr, [](GLFWwindow* w, const int i) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.window_minimize) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.window_minimize) {
                     func(w, i);
                 }
             });
             glfwSetWindowMaximizeCallback(ptr, [](GLFWwindow* w, const int m) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.window_maximize) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.window_maximize) {
                     func(w, m);
                 }
             });
             glfwSetWindowPosCallback(ptr, [](GLFWwindow* w, const int x, const int y) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.window_pos) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.window_pos) {
                     func(w, x, y);
                 }
             });
             glfwSetWindowRefreshCallback(ptr, [](GLFWwindow* w) {
-                for (auto& [key,func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.window_refresh) {
+                for (auto& [key,func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.window_refresh) {
                     func(w);
                 }
             });
             glfwSetWindowSizeCallback(ptr, [](GLFWwindow* w, const int x, const int y) {
-                for (auto& [key, func] : static_cast<window*>(glfwGetWindowUserPointer(w))->cbs.window_size) {
+                for (auto& [key, func] : static_cast<Window*>(glfwGetWindowUserPointer(w))->cbs.window_size) {
                     func(w, x, y);
                 }
             });

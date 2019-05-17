@@ -94,7 +94,7 @@ int main() {
     auto w_res = glm::ivec2(1600, 900);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     glfwWindowHint(GLFW_SAMPLES, 4);
-    auto window = vgl::window(w_res.x, w_res.y, "Hello");
+    vgl::Window window(w_res.x, w_res.y, "Hello");
     window.enable_gl();
     //glfwWindowHint(GLFW_DEPTH_BITS, 32);
     glfwSwapInterval(0);

@@ -11,6 +11,9 @@ target_link_libraries(example_texture PUBLIC OpenGL::GL glad::glad glfw::glfw as
 add_executable(textured_model textured_model/main.cpp)
 target_link_libraries(textured_model PUBLIC vgl)
 
+add_executable(normal_mapping normal_mapping/main.cpp normal_mapping/demo_util.hpp)
+target_link_libraries(normal_mapping PUBLIC vgl)
+
 add_executable(raytracing raytracing/main.cpp)
 target_link_libraries(raytracing PUBLIC vgl)
 

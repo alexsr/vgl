@@ -1,12 +1,11 @@
 #pragma once
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
 #include "glm/glm.hpp"
 #include <vector>
 #include <variant>
 #include <filesystem>
 #include "vgl/rendering/tex_info.hpp"
+#include "stb/stb_image.h"
 
 namespace vgl {
     struct Tex_def {
@@ -20,7 +19,7 @@ namespace vgl {
         Tex_def def;
     };
     namespace file {
-        Tex_def load_tex_def(const Texture_info& tex_info) {
+        inline Tex_def load_tex_def(const Texture_info& tex_info) {
             Tex_def def;
             def.type = GL_UNSIGNED_BYTE;
             auto path = tex_info.file_path.string();
@@ -37,7 +36,7 @@ namespace vgl {
             return def;
         }
 
-        Tex_data load_texture(const Texture_info& tex_info, bool flip = false) {
+        inline Tex_data load_texture(const Texture_info& tex_info, bool flip = false) {
             auto image_path = tex_info.file_path.string();
             auto required_channels = tex_info.channels;
             auto image_channels = tex_info.channels;
@@ -61,7 +60,7 @@ namespace vgl {
             return data;
         }
 
-        std::vector<Tex_data> load_textures(const std::vector<Texture_info>& textures) {
+        inline std::vector<Tex_data> load_textures(const std::vector<Texture_info>& textures) {
             std::vector<Tex_data> tex_data(textures.size());
 #pragma omp parallel for
             for (int i = 0; i < static_cast<int>(textures.size()); ++i) {
