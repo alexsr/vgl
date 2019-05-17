@@ -9,9 +9,9 @@ layout (std430, binding = BOUNDS_BINDING) buffer bounds_buffer {
 
 void main() {
     if (gl_VertexID == 0) {
-        gl_Position = bounds[gl_InstanceID].min_bounds;
+        gl_Position = bounds[gl_InstanceID].bmin;
     }
     else {
-        gl_Position = bounds[gl_InstanceID].max_bounds;
+        gl_Position = bounds[gl_InstanceID].bmax;
     }
 }
