@@ -1,17 +1,16 @@
 #pragma once
 
-#include <glad/glad.h>
 #include <utility>
 
 namespace vgl::gl {
     namespace impl {
-        typedef void (*handle_del)(GLuint);
+        typedef void (*handle_del)(unsigned int);
 
         template <handle_del D>
         class handle {
         public:
             handle() : _id(0) {}
-            handle(GLuint id) : _id(id) {}
+            handle(unsigned int id) : _id(id) {}
             handle(const handle& h) = delete;
             handle(handle&& h) noexcept : _id(std::exchange(h._id, 0)) {}
             handle& operator=(const handle& h) = delete;
@@ -19,75 +18,40 @@ namespace vgl::gl {
                 std::swap(_id, h._id);
                 return *this;
             }
-            inline operator GLuint() const {
+            inline operator unsigned int() const {
                 return _id;
             }
-            inline handle& operator=(GLuint id) {
+            inline handle& operator=(unsigned int id) {
                 D(_id);
                 _id = id;
                 return *this;
             }
-            inline GLuint* operator&() {
+            inline unsigned int* operator&() {
                 return &_id;
             }
-            inline GLuint id() const {
+            inline unsigned int id() const {
                 return _id;
             }
             inline void reset() {
                 D(_id);
                 _id = 0;
             }
-            ~handle() {
+            inline ~handle() {
                 D(_id);
             }
         private:
-            GLuint _id;
+            unsigned int _id;
         };
     }
-    inline void delete_buffer(GLuint id) {
-        if (glIsBuffer(id)) {
-            glDeleteBuffers(1, &id);
-        }
-    }
-    inline void delete_texture(GLuint id) {
-        if (glIsTexture(id)) {
-            const auto handle = glGetTextureHandleARB(id);
-            if (glIsTextureHandleResidentARB(handle)) {
-                glMakeTextureHandleNonResidentARB(handle);
-            }
-            glDeleteTextures(1, &id);
-        }
-    }
-    inline void delete_shader(GLuint id) {
-        if (glIsShader(id)) {
-            glDeleteShader(id);
-        }
-    }
-    inline void delete_program(GLuint id) {
-        if (glIsProgram(id)) {
-            glDeleteProgram(id);
-        }
-    }
-    inline void delete_sampler(GLuint id) {
-        if (glIsSampler(id)) {
-            glDeleteSamplers(1, &id);
-        }
-    }
-    inline void delete_framebuffer(GLuint id) {
-        if (glIsFramebuffer(id)) {
-            glDeleteFramebuffers(1, &id);
-        }
-    }
-    inline void delete_vertex_array(GLuint id) {
-        if (glIsVertexArray(id)) {
-            glDeleteVertexArrays(1, &id);
-        }
-    }
-    inline void delete_query(GLuint id) {
-        if (glIsQuery(id)) {
-            glDeleteQueries(1, &id);
-        }
-    }
+
+    void delete_buffer(unsigned int id);
+    void delete_texture(unsigned int id);
+    void delete_shader(unsigned int id);
+    void delete_program(unsigned int id);
+    void delete_sampler(unsigned int id);
+    void delete_framebuffer(unsigned int id);
+    void delete_vertex_array(unsigned int id);
+    void delete_query(unsigned int id);
     using glbuffer = impl::handle<delete_buffer>;
     using gltexture = impl::handle<delete_texture>;
     using glprogram = impl::handle<delete_program>;
@@ -96,11 +60,4 @@ namespace vgl::gl {
     using glframebuffer = impl::handle<delete_framebuffer>;
     using glvertexarray = impl::handle<delete_vertex_array>;
     using glquery = impl::handle<delete_query>;
-
-    template<void (*handle_del)(GLuint)>
-    void delete_n(std::initializer_list<GLuint> handles) {
-        for (auto& h : handles) {
-            handle_del(h);
-        }
-    }
 }

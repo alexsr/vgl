@@ -1,7 +1,7 @@
 #pragma once
 
 #include "GLFW/glfw3.h"
-#include "glm/glm.hpp"
+#include "glm/vec2.hpp"
 #include <atomic>
 #include <memory>
 #include "win_callbacks.hpp"
