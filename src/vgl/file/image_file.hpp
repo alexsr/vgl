@@ -4,7 +4,7 @@
 #include <vector>
 #include <variant>
 #include <stb/stb_image.h>
-#include <filesystem>
+#include "vgl/rendering/tex_info.hpp"
 
 namespace vgl {
     struct Tex_def {
@@ -17,11 +17,6 @@ namespace vgl {
     struct Tex_data {
         std::variant<stbi_uc*, stbi_us*, float*> ptr;
         Tex_def def;
-    };
-
-    struct Texture_info {
-        std::filesystem::path file_path;
-        int channels{};
     };
 
     namespace file {

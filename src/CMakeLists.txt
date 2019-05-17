@@ -12,6 +12,7 @@ add_library(vgl
 	vgl/file/image_file.cpp
 	vgl/gpu_api/gl/handle.cpp
 	vgl/rendering/camera.cpp
+	vgl/rendering/scene.cpp
 	vgl/control/window.cpp
 	vgl/control/gui.cpp)
 

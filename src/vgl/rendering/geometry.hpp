@@ -12,6 +12,10 @@ namespace vgl
         glm::vec4 uv{};
     };
 
+    inline bool operator==(const Vertex& v, const glm::vec4& p) {
+        return v.pos == p;
+    }
+
     struct Bounds;
     Bounds calc_bounds(const std::vector<Vertex>& vertices);
 
