@@ -98,7 +98,8 @@ vec2 map_unit_sphere_to_equirectangular(const vec2& c) {
     return vec2{x, c.y / M_PI};
 }
 
-std::vector<std::byte> populate_image(const std::vector<std::byte>& ref, int ref_channels, int ref_height,
+template <typename T>
+std::vector<T> populate_image(const std::vector<T>& ref, int ref_channels, int ref_height,
                                       int longitude_zero_degrees, vec3 top_left, vec3 down, vec3 right) {
     auto size = ref_height / 2;
     auto ref_width = 2 * ref_height;
@@ -108,7 +109,7 @@ std::vector<std::byte> populate_image(const std::vector<std::byte>& ref, int ref
     top_left = rotate_y(top_left, longitude_zero);
     down = rotate_y(down, longitude_zero);
     right = rotate_y(right, longitude_zero);
-    std::vector<std::byte> image(ref.size());
+    std::vector<T> image(ref.size());
     for (int j = 0; j < size; j++) {
         double v = j * pixel_dy + 0.5 * pixel_dy;
         for (int i = 0; i < size; i++) {
@@ -170,36 +171,68 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    auto out_path = path.parent_path() / path.filename().stem() / path.filename().stem();
+    if (stbi_is_hdr(path.string().c_str())) {
+        std::vector<float> image(width * height * channels);
+        auto data = stbi_loadf(path.string().c_str(), &width, &height, &channels, channels);
+        std::memcpy(image.data(), data, width * height * channels * sizeof(float));
 
-    std::vector<std::byte> image(width * height * channels);
-    auto data = stbi_load(path.string().c_str(), &width, &height, &channels, channels);
-    std::memcpy(image.data(), data, width * height * channels * sizeof(std::byte));
+        std::cout << "Writing to " << out_path << "\n";
 
-    auto out_path = path.parent_path() / path.filename().stem();
-    std::cout << "Writing to " << out_path << "\n";
-
-    auto test = populate_image(image, channels, height, longitude_zero_degrees, { 1.0, 1.0, 1.0 }, { 0.0, -2.0, 0.0 },
+        auto test = populate_image(image, channels, height, longitude_zero_degrees, { 1.0, 1.0, 1.0 }, { 0.0, -2.0, 0.0 },
             { -2.0, 0.0, 0.0 });
-    stbi_write_png((out_path.string() + "_px.png").c_str(), height / 2, height / 2, channels, test.data(), 0);
+        stbi_write_hdr((out_path.string() + "_px.hdr").c_str(), height / 2, height / 2, channels, test.data());
 
-    test = populate_image(image, channels, height, longitude_zero_degrees, { -1.0, 1.0, -1.0 }, { 2.0, 0.0, 0.0 },
-        { 0.0, 0.0, 2.0 });
-    stbi_write_png((out_path.string() + "_py.png").c_str(), height / 2, height / 2, channels, test.data(), 0);
+        test = populate_image(image, channels, height, longitude_zero_degrees, { -1.0, 1.0, -1.0 }, { 2.0, 0.0, 0.0 },
+            { 0.0, 0.0, 2.0 });
+        stbi_write_hdr((out_path.string() + "_py.hdr").c_str(), height / 2, height / 2, channels, test.data());
 
-    test = populate_image(image, channels, height, longitude_zero_degrees, { 1.0, 1.0, -1.0 }, { 0.0, -2.0, 0.0 },
-        { 0.0, 0.0, 2.0 });
-    stbi_write_png((out_path.string() + "_pz.png").c_str(), height / 2, height / 2, channels, test.data(), 0);
+        test = populate_image(image, channels, height, longitude_zero_degrees, { 1.0, 1.0, -1.0 }, { 0.0, -2.0, 0.0 },
+            { 0.0, 0.0, 2.0 });
+        stbi_write_hdr((out_path.string() + "_pz.hdr").c_str(), height / 2, height / 2, channels, test.data());
 
-    test = populate_image(image, channels, height, longitude_zero_degrees, { -1.0, 1.0, -1.0 }, { 0.0, -2.0, 0.0 },
-        { 2.0, 0.0, 0.0 });
-    stbi_write_png((out_path.string() + "_nx.png").c_str(), height / 2, height / 2, channels, test.data(), 0);
+        test = populate_image(image, channels, height, longitude_zero_degrees, { -1.0, 1.0, -1.0 }, { 0.0, -2.0, 0.0 },
+            { 2.0, 0.0, 0.0 });
+        stbi_write_hdr((out_path.string() + "_nx.hdr").c_str(), height / 2, height / 2, channels, test.data());
 
-    test = populate_image(image, channels, height, longitude_zero_degrees, { 1.0, -1.0, -1.0 }, { -2.0, 0.0, 0.0 },
-        { 0.0, 0.0, 2.0 });
-    stbi_write_png((out_path.string() + "_ny.png").c_str(), height / 2, height / 2, channels, test.data(), 0);
+        test = populate_image(image, channels, height, longitude_zero_degrees, { 1.0, -1.0, -1.0 }, { -2.0, 0.0, 0.0 },
+            { 0.0, 0.0, 2.0 });
+        stbi_write_hdr((out_path.string() + "_ny.hdr").c_str(), height / 2, height / 2, channels, test.data());
 
-    test = populate_image(image, channels, height, longitude_zero_degrees, { -1.0, 1.0, 1.0 }, { 0.0, -2.0, 0.0 },
-        { 0.0, 0.0, -2.0 });
-    stbi_write_png((out_path.string() + "_nz.png").c_str(), height / 2, height / 2, channels, test.data(), 0);
+        test = populate_image(image, channels, height, longitude_zero_degrees, { -1.0, 1.0, 1.0 }, { 0.0, -2.0, 0.0 },
+            { 0.0, 0.0, -2.0 });
+        stbi_write_hdr((out_path.string() + "_nz.hdr").c_str(), height / 2, height / 2, channels, test.data());
+    }
+    else {
+        std::vector<std::byte> image(width * height * channels);
+        auto data = stbi_load(path.string().c_str(), &width, &height, &channels, channels);
+        std::memcpy(image.data(), data, width * height * channels * sizeof(std::byte));
+
+        std::cout << "Writing to " << out_path << "\n";
+
+        auto test = populate_image(image, channels, height, longitude_zero_degrees, { 1.0, 1.0, 1.0 }, { 0.0, -2.0, 0.0 },
+            { -2.0, 0.0, 0.0 });
+        stbi_write_png((out_path.string() + "_px.png").c_str(), height / 2, height / 2, channels, test.data(), 0);
+
+        test = populate_image(image, channels, height, longitude_zero_degrees, { -1.0, 1.0, -1.0 }, { 2.0, 0.0, 0.0 },
+            { 0.0, 0.0, 2.0 });
+        stbi_write_png((out_path.string() + "_py.png").c_str(), height / 2, height / 2, channels, test.data(), 0);
+
+        test = populate_image(image, channels, height, longitude_zero_degrees, { 1.0, 1.0, -1.0 }, { 0.0, -2.0, 0.0 },
+            { 0.0, 0.0, 2.0 });
+        stbi_write_png((out_path.string() + "_pz.png").c_str(), height / 2, height / 2, channels, test.data(), 0);
+
+        test = populate_image(image, channels, height, longitude_zero_degrees, { -1.0, 1.0, -1.0 }, { 0.0, -2.0, 0.0 },
+            { 2.0, 0.0, 0.0 });
+        stbi_write_png((out_path.string() + "_nx.png").c_str(), height / 2, height / 2, channels, test.data(), 0);
+
+        test = populate_image(image, channels, height, longitude_zero_degrees, { 1.0, -1.0, -1.0 }, { -2.0, 0.0, 0.0 },
+            { 0.0, 0.0, 2.0 });
+        stbi_write_png((out_path.string() + "_ny.png").c_str(), height / 2, height / 2, channels, test.data(), 0);
+
+        test = populate_image(image, channels, height, longitude_zero_degrees, { -1.0, 1.0, 1.0 }, { 0.0, -2.0, 0.0 },
+            { 0.0, 0.0, -2.0 });
+        stbi_write_png((out_path.string() + "_nz.png").c_str(), height / 2, height / 2, channels, test.data(), 0);
+    }
     return 0;
 }
