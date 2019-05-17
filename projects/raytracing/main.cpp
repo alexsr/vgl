@@ -17,6 +17,7 @@
 #include "vgl/gpu_api/gl/debug.hpp"
 #include "vgl/control/gui.hpp"
 #include "vgl/rendering/camera.hpp"
+#include "vgl/rendering/light.hpp"
 
 // enable optimus!
 using DWORD = uint32_t;
@@ -24,32 +25,6 @@ using DWORD = uint32_t;
 extern "C" {
 _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 }
-
-struct Attenuation {
-    float constant = 1.0;
-    float linear = 0.0;
-    float quadratic = 0.0;
-    float pad1 = 0.0;
-};
-
-struct Light {
-    glm::vec4 pos{};
-    glm::vec4 color{};
-    glm::vec4 dir{0.0, -1.0, 0.0, 0.0};
-    Attenuation attenuation{};
-    float outer_cutoff{glm::pi<float>() / 4.0f};
-    float inner_cutoff{ glm::pi<float>() / 4.5f };
-    int type = 1;
-    int pad1;
-};
-
-struct Material {
-    glm::vec4 diffuse{};
-    glm::vec4 specular{};
-    glm::vec4 emissive{};
-    glm::vec4 reflective{};
-    glm::vec4 transparent{};
-};
 
 float gen_random_float(const float lower, const float upper) {
     std::random_device rd;
@@ -243,8 +218,8 @@ int main() {
     vgl::Scene scene{};
     bool mesh_loaded = false;
 
-    std::vector<Light> lights{Light{glm::vec4(0, 0, 0, 1.0), glm::vec4(1.0), glm::vec4(0.0, -1.0, 0.0, 0.0),
-        Attenuation{}, glm::pi<float>() / 4.0f, 1, 0, 0} };
+    std::vector<vgl::Light> lights{ vgl::Light{glm::vec4(0, 0, 0, 1.0), glm::vec4(1.0), glm::vec4(0.0, -1.0, 0.0, 0.0),
+        vgl::Attenuation{}, glm::pi<float>() / 4.0f, 1, 0, 0} };
 
     vgl::gl::glbuffer model_vbo = 0;
     vgl::gl::glbuffer indices_buffer = 0;
@@ -372,7 +347,7 @@ int main() {
         ImGui::EndMainMenuBar();
         if (ImGui::Begin("Settings")) {
             if (ImGui::Button("Add light")) {
-                lights.push_back(Light{});
+                lights.push_back(vgl::Light{});
                 lights_added_or_removed = true;
             }
             int i = 0;
@@ -417,9 +392,9 @@ int main() {
             glFinish();
         }
         //if (mesh_loaded) {
-            const auto lights_ptr = glMapNamedBufferRange(lights_ssbo, 0, sizeof(Light) * lights.size(),
+            const auto lights_ptr = glMapNamedBufferRange(lights_ssbo, 0, sizeof(vgl::Light) * lights.size(),
                 GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
-            std::memcpy(lights_ptr, lights.data(), sizeof(Light) * lights.size());
+            std::memcpy(lights_ptr, lights.data(), sizeof(vgl::Light) * lights.size());
             glUnmapNamedBuffer(lights_ssbo);
             if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused()
                 && !ImGui::IsAnyItemActive()) {

@@ -17,6 +17,7 @@
 #include "vgl/gpu_api/gl/debug.hpp"
 #include "vgl/control/gui.hpp"
 #include "vgl/rendering/camera.hpp"
+#include "vgl/rendering/light.hpp"
 
 // enable optimus!
 using DWORD = uint32_t;
@@ -24,32 +25,6 @@ using DWORD = uint32_t;
 extern "C" {
 _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 }
-
-struct Attenuation {
-    float constant = 1.0;
-    float linear = 0.0;
-    float quadratic = 0.0;
-    float pad1 = 0.0;
-};
-
-struct Light {
-    glm::vec4 pos{};
-    glm::vec4 color{};
-    glm::vec4 dir{0.0, -1.0, 0.0, 0.0};
-    Attenuation attenuation{};
-    float outer_cutoff{glm::pi<float>() / 4.0f};
-    float inner_cutoff{ glm::pi<float>() / 4.5f };
-    int type = 1;
-    int pad1;
-};
-
-struct Material {
-    glm::vec4 diffuse{};
-    glm::vec4 specular{};
-    glm::vec4 emissive{};
-    glm::vec4 reflective{};
-    glm::vec4 transparent{};
-};
 
 float gen_random_float(const float lower, const float upper) {
     std::random_device rd;
@@ -155,8 +130,8 @@ int main() {
     };
 
     struct Demo_config {
-        std::vector<Light> lights{ Light{glm::vec4(0, 0, 0, 1.0), glm::vec4(1.0), glm::vec4(0.0, -1.0, 0.0, 0.0),
-            Attenuation{}, glm::pi<float>() / 4.0f, 1, 1, 0} };
+        std::vector<vgl::Light> lights{ vgl::Light{glm::vec4(0, 0, 0, 1.0), glm::vec4(1.0), glm::vec4(0.0, -1.0, 0.0, 0.0),
+            vgl::Attenuation{}, glm::pi<float>() / 4.0f, 1, 1, 0} };
         glm::ivec2 fb_res;
         bool mesh_loaded = false;
         bool lights_added_or_removed = false;
@@ -473,7 +448,7 @@ int main() {
             ImGui::Separator();
             if (ImGui::CollapsingHeader("Light settings")) {
                 if (ImGui::Button("Add light")) {
-                    config.lights.push_back(Light{});
+                    config.lights.push_back(vgl::Light{});
                     config.lights_added_or_removed = true;
                 }
                 int i = 0;
