@@ -8,6 +8,11 @@ namespace vgl::gl {
             throw std::runtime_error{ "Framebuffer " + std::to_string(framebuffer.id()) + " was not created." };
         }
     }
+
+    void attach_draw_buffers(const glframebuffer& framebuffer, std::initializer_list<GLenum> draw_buffers) {
+        glNamedFramebufferDrawBuffers(framebuffer, std::size(draw_buffers), std::data(draw_buffers));
+    }
+
     glframebuffer create_framebuffer() {
         GLuint framebuffer = 0;
         glCreateFramebuffers(1, &framebuffer);
