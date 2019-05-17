@@ -14,6 +14,9 @@ target_link_libraries(textured_model PUBLIC vgl)
 add_executable(raytracing raytracing/main.cpp)
 target_link_libraries(raytracing PUBLIC vgl)
 
+add_executable(deferred deferred/main.cpp)
+target_link_libraries(deferred PUBLIC vgl)
+
 add_executable(cubemap_generator cubemap_generator/main.cpp)
 target_link_libraries(cubemap_generator PUBLIC stb::stb)
 
