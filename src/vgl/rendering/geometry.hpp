@@ -2,6 +2,7 @@
 
 #include "glm/glm.hpp"
 #include <vector>
+#include <array>
 
 namespace vgl
 {
@@ -37,5 +38,14 @@ namespace vgl
             bounds.max = glm::max(v.pos, bounds.max);
         }
         return bounds;
+    }
+    namespace geo {
+        constexpr std::array<glm::vec3, 14> unit_cube{ glm::vec3(-0.5, 0.5, 0.5),
+                    glm::vec3(0.5, 0.5, 0.5), glm::vec3(-0.5, -0.5, 0.5),
+                    glm::vec3(0.5, -0.5, 0.5), glm::vec3(0.5, -0.5, -0.5),
+                    glm::vec3(0.5, 0.5, 0.5), glm::vec3(0.5, 0.5, -0.5),
+                    glm::vec3(-0.5, 0.5, 0.5), glm::vec3(-0.5, 0.5, -0.5),
+                    glm::vec3(-0.5, -0.5, 0.5), glm::vec3(-0.5, -0.5, -0.5),
+                    glm::vec3(0.5, -0.5, -0.5), glm::vec3(-0.5, 0.5, -0.5), glm::vec3(0.5, 0.5, -0.5) };
     }
 }
