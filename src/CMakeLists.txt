@@ -9,6 +9,7 @@ configure_file(${SRC_PATH}/vgl/file/file_paths.hpp.in ${SRC_PATH}/vgl/file/file_
 add_library(vgl
 	vgl/file/stb_impl.cpp
 	vgl/file/file.cpp
+	vgl/file/image_file.cpp
 	vgl/gpu_api/gl/handle.cpp
 	vgl/control/window.cpp
 	vgl/control/gui.cpp)
