@@ -363,7 +363,7 @@ void main() {
             ImFontConfig icons_config;
             icons_config.MergeMode = true;
             icons_config.PixelSnapH = true;
-            io.Fonts->AddFontFromFileTTF((file::resources_path / "fonts" / FONT_ICON_FILE_NAME_MDI).string().c_str(),
+            io.Fonts->AddFontFromFileTTF((file::resources_path / "fonts/" / FONT_ICON_FILE_NAME_MDI).string().c_str(),
                 font_size, &icons_config, icons_range.data());
             io.Fonts->Build();
             unsigned char* pixel_ptr;
