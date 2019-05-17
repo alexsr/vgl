@@ -2,8 +2,8 @@
 #define BOUNDS_GLSL
 
 struct Bounds {
-    vec4 min_bounds;
-    vec4 max_bounds;
+    vec4 bmin;
+    vec4 bmax;
 };
 
 #endif // BOUNDS_GLSL

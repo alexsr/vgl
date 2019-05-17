@@ -15,6 +15,7 @@ layout (location = 0) out vec4 _color;
 #include "../include/light.glsl"
 #include "../include/material.glsl"
 #include "../include/bindings.glsl"
+#include "../include/shading.glsl"
 
 layout (std430, binding = LIGHTS_BINDING) buffer light_buffer {
     Light lights[];
@@ -27,15 +28,6 @@ layout (std430, binding = MATERIAL_BINDING) buffer material_buffer {
 layout (std430, binding = TEXTURE_REFS_BINDING) buffer tex_ref_buffer {
     sampler2D textures[];
 };
-
-float phong_spec(vec3 light_dir, vec3 view_dir, vec3 normal, float shininess) {
-    return pow(max(dot(reflect(light_dir, normal), view_dir), 0), shininess);
-}
-
-float blinn_phong_spec(vec3 light_dir, vec3 view_dir, vec3 normal, float shininess) {
-    vec3 halfway_dir = normalize(light_dir + view_dir);
-    return pow(max(dot(normal, halfway_dir), 0), shininess);
-}
 
 void main() {
     _color.rgb = vec3(0);

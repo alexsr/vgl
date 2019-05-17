@@ -1,5 +1,7 @@
 #version 460
 
+layout (location = 0) in vec3 cube_pos;
+
 #include "../include/cam.glsl"
 #include "../include/light.glsl"
 #include "../include/bindings.glsl"
@@ -12,13 +14,9 @@ layout (std430, binding = CAM_BINDING) buffer cam_buffer {
     Camera cam;
 };
 
-layout (location = 0) out vec2 _uv;
-layout (location = 1) out vec4 _color;
+layout (location = 0) out vec4 _color;
 
 void main() {
-    _uv = vec2(gl_VertexID & 1, (gl_VertexID & 2) >> 1);
-    _uv = _uv * 2.0 - 1.0;
-    vec3 position =  mat3(transpose(cam.view)) * vec3(_uv * 0.1, 0.0) + lights[gl_InstanceID].pos.xyz;
     _color = lights[gl_InstanceID].color;
-    gl_Position = cam.proj * cam.view * vec4(position, 1.0);
+    gl_Position = (cam.proj * cam.view * vec4(lights[gl_InstanceID].pos.xyz + cube_pos * 0.1, 1.0));
 }

@@ -1,7 +1,4 @@
 #include "vgl/control/window.hpp"
-#include "imgui/imgui.h"
-#include "imgui/examples/imgui_impl_glfw.h"
-#include "imgui/examples/imgui_impl_opengl3.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "vgl/rendering/scene.hpp"
@@ -15,7 +12,7 @@
 #include <random>
 #include "vgl/gpu_api/gl/texture.hpp"
 #include <glsp/preprocess.hpp>
-#include "vgl/file/texture_loading.hpp"
+#include "vgl/file/image_file.hpp"
 #include "vgl/gpu_api/gl/framebuffer.hpp"
 #include "vgl/gpu_api/gl/debug.hpp"
 #include "vgl/control/gui.hpp"
@@ -148,29 +145,23 @@ int main() {
     vgl::gl::glprogram phong, depth_prepass, lights_debug, aabb_debug, screen, raytracing;
 
     auto reload_shaders = [&]() {
-        auto phong_vs_future = vgl::file::load_string_file_async(vgl::file::shaders_path / "shading/phong.vert");
-        auto phong_fs_future = vgl::file::load_string_file_async(vgl::file::shaders_path / "shading/phong.frag");
         auto raytracing_vs_future = vgl::file::load_string_file_async(vgl::file::shaders_path / "shading/raytracing.vert");
         auto raytracing_fs_future = vgl::file::load_string_file_async(vgl::file::shaders_path / "shading/raytracing.frag");
         auto depth_prepass_vs_future = vgl::file::load_string_file_async(vgl::file::shaders_path / "shading/depth_prepass.vert");
         auto depth_prepass_fs_future = vgl::file::load_string_file_async(vgl::file::shaders_path / "shading/depth_prepass.frag");
         auto lights_debug_vs_ftr = vgl::file::load_string_file_async(vgl::file::shaders_path / "debug/lights.vert");
         auto lights_debug_fs_ftr = vgl::file::load_string_file_async(vgl::file::shaders_path / "debug/lights.frag");
-        auto screen_vs_ftr = vgl::file::load_string_file_async(vgl::file::shaders_path / "screen/screen.vert");
-        auto screen_fs_ftr = vgl::file::load_string_file_async(vgl::file::shaders_path / "screen/screen.frag");
+        auto screen_vs_ftr = vgl::file::load_string_file_async(vgl::file::shaders_path / "util/screen.vert");
+        auto screen_fs_ftr = vgl::file::load_string_file_async(vgl::file::shaders_path / "util/screen.frag");
         auto aabb_debug_vs_source_ftr = vgl::file::load_string_file_async(vgl::file::shaders_path / "debug/bb.vert");
         auto aabb_debug_gs_source_ftr = vgl::file::load_string_file_async(vgl::file::shaders_path / "debug/bb.geom");
         auto aabb_debug_fs_source_ftr = vgl::file::load_string_file_async(vgl::file::shaders_path / "debug/red.frag");
 
-        auto phong_vs_source = glsp::preprocess_source(phong_vs_future.get(), "phong.vert",
-            { (vgl::file::shaders_path / "shading").string() }).contents;
-        auto phong_fs_source = glsp::preprocess_source(phong_fs_future.get(), "phong.frag",
-            { (vgl::file::shaders_path / "shading").string() }).contents;
+        auto phong_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "shading/shading.vert").string()).contents;
+        auto phong_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "shading/phong.frag").string()).contents;
         auto phong_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, phong_vs_source);
         auto phong_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, phong_fs_source);
         phong = vgl::gl::create_program({ phong_vs, phong_fs });
-        vgl::gl::delete_shader(phong_vs);
-        vgl::gl::delete_shader(phong_fs);
 
         auto raytracing_vs_source = glsp::preprocess_source(raytracing_vs_future.get(), "raytracing.vert",
             { (vgl::file::shaders_path / "shading").string() }).contents;
@@ -181,9 +172,9 @@ int main() {
         raytracing = vgl::gl::create_program({ raytracing_vs, raytracing_fs });
 
         auto screen_vs_source = glsp::preprocess_source(screen_vs_ftr.get(), "screen.vert",
-            { (vgl::file::shaders_path / "screen").string() }).contents;
+            { (vgl::file::shaders_path / "util").string() }).contents;
         auto screen_fs_source = glsp::preprocess_source(screen_fs_ftr.get(), "screen.frag",
-            { (vgl::file::shaders_path / "screen").string() }).contents;
+            { (vgl::file::shaders_path / "util").string() }).contents;
         auto screen_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, screen_vs_source);
         auto screen_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, screen_fs_source);
         screen = vgl::gl::create_program({ screen_vs, screen_fs });
@@ -302,7 +293,7 @@ int main() {
                     glFinish();
                     scene = vgl::load_scene(file.value());
                     textures.resize(scene.textures.size());
-                    auto tex_data = vgl::load_texture_files(scene.textures);
+                    auto tex_data = vgl::file::load_textures(scene.textures);
                     std::vector<GLuint64> tex_handles(scene.textures.size());
                     for (auto i = 0; i < scene.textures.size(); ++i) {
                         textures.at(i) = vgl::gl::create_texture(GL_TEXTURE_2D);
@@ -310,27 +301,9 @@ int main() {
                         glTextureParameteri(textures.at(i), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                         glTextureParameteri(textures.at(i), GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
                         glTextureParameteri(textures.at(i), GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-                        if (std::holds_alternative<vgl::Tex_def<stbi_uc>>(tex_data.at(i))) {
-                            auto tex = std::get<vgl::Tex_def<stbi_uc>>(tex_data.at(i));
-                            glTextureStorage2D(textures.at(i), 1, tex.internal_format, tex.image_size.x, tex.image_size.y);
-                            glTextureSubImage2D(textures.at(i), 0, 0, 0, tex.image_size.x, tex.image_size.y, tex.format,
-                                GL_UNSIGNED_BYTE, tex.ptr);
-                            stbi_image_free(tex.ptr);
-                        }
-                        else if (std::holds_alternative<vgl::Tex_def<stbi_us>>(tex_data.at(i))) {
-                            auto tex = std::get<vgl::Tex_def<stbi_us>>(tex_data.at(i));
-                            glTextureStorage2D(textures.at(i), 1, tex.internal_format, tex.image_size.x, tex.image_size.y);
-                            glTextureSubImage2D(textures.at(i), 0, 0, 0, tex.image_size.x, tex.image_size.y, tex.format,
-                                GL_UNSIGNED_SHORT, tex.ptr);
-                            stbi_image_free(tex.ptr);
-                        }
-                        else if (std::holds_alternative<vgl::Tex_def<float>>(tex_data.at(i))) {
-                            auto tex = std::get<vgl::Tex_def<float>>(tex_data.at(i));
-                            glTextureStorage2D(textures.at(i), 1, tex.internal_format, tex.image_size.x, tex.image_size.y);
-                            glTextureSubImage2D(textures.at(i), 0, 0, 0, tex.image_size.x, tex.image_size.y, tex.format,
-                                GL_FLOAT, tex.ptr);
-                            stbi_image_free(tex.ptr);
-                        }
+                        glTextureStorage2D(textures.at(i), 1, tex_data.at(i).def.internal_format,
+                            tex_data.at(i).def.image_size.x, tex_data.at(i).def.image_size.y);
+                        vgl::gl::set_texture_data_2d(textures.at(i), tex_data.at(i));
                         tex_handles.at(i) = vgl::gl::get_texture_handle(textures.at(i));
                     }
                     mesh_loaded = true;
