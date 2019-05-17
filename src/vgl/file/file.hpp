@@ -27,6 +27,20 @@ namespace vgl::file
         return res;
     }
 
+    std::optional<std::vector<std::filesystem::path>> open_multiple_files_dialog(std::filesystem::path default_path,
+        const std::string& filter = "") {
+        nfdpathset_t res;
+        auto status = NFD_OpenDialogMultiple(filter.c_str(), default_path.make_preferred().string().c_str(), &res);
+        if (status == NFD_CANCEL || status == NFD_ERROR) {
+            return std::nullopt;
+        }
+        std::vector<std::filesystem::path> paths(res.count);
+        for (int i = 0; i < res.count; ++i) {
+            paths.at(i) = res.buf + res.indices[i];
+        }
+        return paths;
+    }
+
     std::string load_string_file(const std::filesystem::path& file_path) {
         std::ifstream f(file_path, std::ios::binary | std::ios::in);
         const auto file_size = std::filesystem::file_size(file_path);
