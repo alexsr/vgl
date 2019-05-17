@@ -1,6 +1,7 @@
 #include "image_file.hpp"
 #include <filesystem>
 #include "stb/stb_image.h"
+#include "vgl/gpu_api/gl/tex_format.hpp"
 
 vgl::Tex_def vgl::file::load_tex_def(const Texture_info& tex_info) {
     Tex_def def;
@@ -12,14 +13,14 @@ vgl::Tex_def vgl::file::load_tex_def(const Texture_info& tex_info) {
     else if (stbi_is_16_bit(path.c_str())) {
         def.type = GL_UNSIGNED_SHORT;
     }
-    auto format = gen_tex_format(tex_info.channels, def.type);
+    auto format = gl::gen_tex_format(tex_info.channels, def.type);
     def.format = format.format;
     def.internal_format = format.internal_format;
     stbi_info(path.c_str(), &def.image_size.x, &def.image_size.y, nullptr);
     return def;
 }
 
-vgl::Tex_data vgl::file::load_texture(const Texture_info& tex_info, bool flip = false) {
+vgl::Tex_data vgl::file::load_texture(const Texture_info& tex_info, bool flip) {
     auto image_path = tex_info.file_path.string();
     auto required_channels = tex_info.channels;
     auto image_channels = tex_info.channels;

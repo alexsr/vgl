@@ -2,6 +2,7 @@
 
 #include "handle.hpp"
 #include "vgl/file/image_file.hpp"
+#include <glad/glad.h>
 
 namespace vgl::gl
 {

@@ -1,13 +1,8 @@
 #pragma once
 
-#include "glad/glad.h"
+#include <glad/glad.h>
 
-namespace vgl {
-    struct Texture_info {
-        std::filesystem::path file_path;
-        int channels{};
-    };
-
+namespace vgl::gl {
     struct Texture_format {
         GLenum format;
         GLenum internal_format;

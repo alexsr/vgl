@@ -1,16 +1,17 @@
 #pragma once
 
 #include <utility>
+#include <glad/glad.h>
 
 namespace vgl::gl {
     namespace impl {
-        typedef void (*handle_del)(unsigned int);
+        typedef void (*handle_del)(GLuint);
 
         template <handle_del D>
         class handle {
         public:
             handle() : _id(0) {}
-            handle(unsigned int id) : _id(id) {}
+            handle(GLuint id) : _id(id) {}
             handle(const handle& h) = delete;
             handle(handle&& h) noexcept : _id(std::exchange(h._id, 0)) {}
             handle& operator=(const handle& h) = delete;
@@ -18,18 +19,18 @@ namespace vgl::gl {
                 std::swap(_id, h._id);
                 return *this;
             }
-            inline operator unsigned int() const {
+            inline operator GLuint() const {
                 return _id;
             }
-            inline handle& operator=(unsigned int id) {
+            inline handle& operator=(GLuint id) {
                 D(_id);
                 _id = id;
                 return *this;
             }
-            inline unsigned int* operator&() {
+            inline GLuint* operator&() {
                 return &_id;
             }
-            inline unsigned int id() const {
+            inline GLuint id() const {
                 return _id;
             }
             inline void reset() {
@@ -40,18 +41,18 @@ namespace vgl::gl {
                 D(_id);
             }
         private:
-            unsigned int _id;
+            GLuint _id;
         };
     }
 
-    void delete_buffer(unsigned int id);
-    void delete_texture(unsigned int id);
-    void delete_shader(unsigned int id);
-    void delete_program(unsigned int id);
-    void delete_sampler(unsigned int id);
-    void delete_framebuffer(unsigned int id);
-    void delete_vertex_array(unsigned int id);
-    void delete_query(unsigned int id);
+    void delete_buffer(GLuint id);
+    void delete_texture(GLuint id);
+    void delete_shader(GLuint id);
+    void delete_program(GLuint id);
+    void delete_sampler(GLuint id);
+    void delete_framebuffer(GLuint id);
+    void delete_vertex_array(GLuint id);
+    void delete_query(GLuint id);
     using glbuffer = impl::handle<delete_buffer>;
     using gltexture = impl::handle<delete_texture>;
     using glprogram = impl::handle<delete_program>;

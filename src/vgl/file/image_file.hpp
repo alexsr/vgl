@@ -3,7 +3,8 @@
 #include "glm/vec2.hpp"
 #include <vector>
 #include <variant>
-#include "vgl/rendering/tex_info.hpp"
+#include <stb/stb_image.h>
+#include <filesystem>
 
 namespace vgl {
     struct Tex_def {
@@ -16,6 +17,11 @@ namespace vgl {
     struct Tex_data {
         std::variant<stbi_uc*, stbi_us*, float*> ptr;
         Tex_def def;
+    };
+
+    struct Texture_info {
+        std::filesystem::path file_path;
+        int channels{};
     };
 
     namespace file {

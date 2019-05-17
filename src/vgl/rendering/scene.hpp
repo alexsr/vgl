@@ -10,10 +10,10 @@
 #include <filesystem>
 #include <glm/gtx/component_wise.hpp>
 #include "geometry.hpp"
-#include "tex_info.hpp"
 #include <execution>
 #include "material.hpp"
 #include "vgl/gpu_api/gl/multidraw.hpp"
+#include "vgl/file/image_file.hpp"
 
 namespace vgl
 {
