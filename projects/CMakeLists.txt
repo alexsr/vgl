@@ -10,6 +10,9 @@ target_link_libraries(textured_model PUBLIC vgl)
 add_executable(normal_mapping normal_mapping/main.cpp normal_mapping/demo_util.hpp)
 target_link_libraries(normal_mapping PUBLIC vgl)
 
+add_executable(pbr pbr/main.cpp pbr/demo_util.hpp)
+target_link_libraries(pbr PUBLIC vgl)
+
 add_executable(raytracing raytracing/main.cpp)
 target_link_libraries(raytracing PUBLIC vgl)
 
