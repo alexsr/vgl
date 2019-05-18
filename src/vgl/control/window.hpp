@@ -11,7 +11,7 @@ namespace vgl
     class Window {
     public:
         Window(int width, int height, const std::string& title, GLFWmonitor* monitor = nullptr, GLFWwindow* share = nullptr);
-        void enable_gl(int major = 4, int minor = 6) const;
+        void enable_gl(int major = 4, int minor = 6);
         void poll_events();
         void swap_buffers() const;
         bool should_close() const;
@@ -19,6 +19,7 @@ namespace vgl
         void close();
         glm::ivec2 size();
         glm::ivec2 framebuffer_size();
+        operator GLFWwindow*();
 
         win::callbacks cbs;
         std::map<int, bool> key{};

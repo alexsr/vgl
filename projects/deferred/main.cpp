@@ -20,10 +20,8 @@
 #include "vgl/rendering/light.hpp"
 
 // enable optimus!
-using DWORD = uint32_t;
-
 extern "C" {
-_declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+    _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001;
 }
 
 float gen_random_float(const float lower, const float upper) {
@@ -111,16 +109,6 @@ int main() {
     glGetIntegerv(GL_SAMPLES, &samples);
     std::cout << samples << "\n";
     vgl::ui::Gui gui(window);
-    {
-        auto& style = ImGui::GetStyle();
-        style.WindowRounding = 0;
-        style.ScrollbarRounding = 0.0f;
-        style.ScrollbarSize = 20.0f;
-        style.DisplaySafeAreaPadding = ImVec2(0.0f, 0.0f);
-        style.DisplayWindowPadding = ImVec2(0.0f, 0.0f);
-        style.ChildBorderSize = 1.0f;
-        ImGui::StyleColorsVS();
-    }
 
     struct Cubemap_config {
         bool hdr = false;

@@ -1,73 +1,68 @@
-#include "GLFW/glfw3.h"
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
 #include "glm/glm.hpp"
 #include "vgl/file/file.hpp"
+#include "vgl/file/image_file.hpp"
 #include "vgl/gpu_api/gl/shader.hpp"
-#include "vgl/gpu_api/gl/buffer.hpp"
 #include "vgl/gpu_api/gl/vao.hpp"
 #include "vgl/gpu_api/gl/texture.hpp"
-#include "vgl/gpu_api/gl/fbo.hpp"
-#include "imgui/imgui.h"
-#include "imgui/examples/imgui_impl_opengl3.h"
-#include "imgui/examples/imgui_impl_glfw.h"
+#include "vgl/gpu_api/gl/framebuffer.hpp"
+#include "vgl/control/window.hpp"
+#include "vgl/control/gui.hpp"
+#include <glsp/glsp.hpp>
+
+// enable optimus!
+extern "C" {
+    _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001;
+}
 
 int main() {
-    glfwInit();
     auto w_res = glm::ivec2(1600, 900);
-    auto window = glfwCreateWindow(w_res.x, w_res.y, "Hello", nullptr, nullptr);
-    glfwMakeContextCurrent(window);
-    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
-    }
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    vgl::Window window(w_res.x, w_res.y, "Hello");
+    window.enable_gl();
+    vgl::ui::Gui gui(window);
     glViewport(0, 0, w_res.x, w_res.y);
-
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    (void) io;
-    ImGui::StyleColorsDark();
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 460");
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-    auto vertex_shader = vgl::gl::create_shader_spirv(GL_VERTEX_SHADER, vgl::shaders_path / "minimal/texture.vert");
-    auto gauss_x_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/gauss_x.frag");
-    auto gauss_y_shader = vgl::gl::create_shader_spirv(GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/gauss_y.frag");
-    auto monochrome_shader = vgl::gl::create_shader_spirv(
-        GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/monochrome.frag");
-    auto sobel_first_shader = vgl::gl::create_shader_spirv(
-        GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/sobel_xy_first_pass.frag");
-    auto sobel_second_shader = vgl::gl::create_shader_spirv(
-        GL_FRAGMENT_SHADER, vgl::shaders_path / "filters/sobel_xy_angle.frag");
-    auto non_max_suppression_shader = vgl::gl::create_shader_spirv(
-        GL_FRAGMENT_SHADER, vgl::shaders_path / "edge_detection/canny_non_max_suppression.frag");
-    auto double_threshold_shader = vgl::gl::create_shader_spirv(
-        GL_FRAGMENT_SHADER, vgl::shaders_path / "edge_detection/canny_double_threshold.frag");
+    auto vertex_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "minimal/texture.vert").string()).contents;
+    auto gauss_x_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/gauss_x.frag").string()).contents;
+    auto gauss_y_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/gauss_y.frag").string()).contents;
+    auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, vertex_shader_source);
+    auto gauss_x_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, gauss_x_source);
+    auto gauss_y_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, gauss_y_source);
+    const auto gauss_x = vgl::gl::create_program({ vertex_shader, gauss_x_shader });
+    const auto gauss_y = vgl::gl::create_program({ vertex_shader, gauss_y_shader });
 
-    const auto gauss_x = vgl::gl::create_program({vertex_shader, gauss_x_shader});
-    const auto gauss_y = vgl::gl::create_program({vertex_shader, gauss_y_shader});
+    auto monochrome_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/monochrome.frag").string()).contents;
+    auto monochrome_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, monochrome_source);
+
+    auto sobel_first_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/sobel_xy_first_pass.frag").string()).contents;
+    auto sobel_first_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, sobel_first_source);
+
+    auto sobel_second_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/sobel_xy_angle.frag").string()).contents;
+    auto sobel_second_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, sobel_second_source);
+
+    auto non_max_suppression_source = glsp::preprocess_file((vgl::file::shaders_path
+        / "edge_detection/canny_non_max_suppression.frag").string()).contents;
+    auto non_max_suppression_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, non_max_suppression_source);
+
+    auto double_threshold_source = glsp::preprocess_file((vgl::file::shaders_path
+        / "edge_detection/canny_double_threshold.frag").string()).contents;
+    auto double_threshold_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, double_threshold_source);
+
     const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});
     const auto sobel_xy_first = vgl::gl::create_program({vertex_shader, sobel_first_shader});
     const auto sobel_xy_second = vgl::gl::create_program({vertex_shader, sobel_second_shader});
     const auto double_threshold = vgl::gl::create_program({vertex_shader, double_threshold_shader});
     const auto non_max_suppression = vgl::gl::create_program({vertex_shader, non_max_suppression_shader});
 
-    vgl::gl::delete_shaders({
-        vertex_shader, monochrome_shader, sobel_first_shader, sobel_second_shader, double_threshold_shader,
-        non_max_suppression_shader, gauss_x_shader, gauss_y_shader
-    });
-
-    GLuint tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
+    auto tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
     glTextureParameteri(tex_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(tex_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTextureParameteri(tex_id, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
     glTextureParameteri(tex_id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
 
     glm::ivec2 image_size{};
-    auto image_path = (vgl::resources_path / "images/clifton-house-project.jpg").string();
+    auto image_path = (vgl::file::resources_path / "images/clifton-house-project.jpg").string();
     stbi_info(image_path.c_str(), &image_size.x, &image_size.y, nullptr);
     stbi_set_flip_vertically_on_load(1);
     auto image_channels = 4;
@@ -77,28 +72,28 @@ int main() {
     glTextureStorage2D(tex_id, 1, GL_RGBA8, image_size.x, image_size.y);
     glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGBA, GL_UNSIGNED_BYTE, ptr.get());
 
-    GLuint monochrome_tex = vgl::gl::create_texture(GL_TEXTURE_2D);
+    auto monochrome_tex = vgl::gl::create_texture(GL_TEXTURE_2D);
     glTextureParameteri(monochrome_tex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(monochrome_tex, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTextureParameteri(monochrome_tex, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
     glTextureParameteri(monochrome_tex, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
     glTextureStorage2D(monochrome_tex, 1, GL_RGBA32F, image_size.x, image_size.y);
 
-    GLuint sobel_tex = vgl::gl::create_texture(GL_TEXTURE_2D);
+    auto sobel_tex = vgl::gl::create_texture(GL_TEXTURE_2D);
     glTextureParameteri(sobel_tex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(sobel_tex, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTextureParameteri(sobel_tex, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
     glTextureParameteri(sobel_tex, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
     glTextureStorage2D(sobel_tex, 1, GL_RGBA32F, image_size.x, image_size.y);
 
-    GLuint monochrome_fb = vgl::gl::create_framebuffer();
+    auto monochrome_fb = vgl::gl::create_framebuffer();
     glNamedFramebufferTexture(monochrome_fb, GL_COLOR_ATTACHMENT0, monochrome_tex, 0);
-    vgl::gl::attach_drawbuffers(monochrome_fb, GL_COLOR_ATTACHMENT0);
+    vgl::gl::attach_draw_buffers(monochrome_fb, { GL_COLOR_ATTACHMENT0 });
     vgl::gl::check_framebuffer(monochrome_fb);
 
-    GLuint sobel_fb = vgl::gl::create_framebuffer();
+    auto sobel_fb = vgl::gl::create_framebuffer();
     glNamedFramebufferTexture(sobel_fb, GL_COLOR_ATTACHMENT0, sobel_tex, 0);
-    vgl::gl::attach_drawbuffers(sobel_fb, GL_COLOR_ATTACHMENT0);
+    vgl::gl::attach_draw_buffers(sobel_fb, { GL_COLOR_ATTACHMENT0 });
     vgl::gl::check_framebuffer(sobel_fb);
 
     auto screen_vao = vgl::gl::create_vertex_array();
@@ -109,11 +104,9 @@ int main() {
     int kernel_size = 3;
     int non_max_size = 3;
 
-    while (!glfwWindowShouldClose(window)) {
+    while (!window.should_close()) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+        gui.start_frame();
         if (ImGui::Begin("Canny")) {
             ImGui::SliderInt("Gauss kernel size", &kernel_size, 1, 100);
             ImGui::SliderInt("Kernel Size Non Max Suppression", &non_max_size, 1, 100);
@@ -162,14 +155,12 @@ int main() {
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glUseProgram(double_threshold);
         glBindTextureUnit(0, sobel_tex);
+        w_res = window.size();
         glViewport(0, 0, w_res.x, w_res.y);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+        gui.render();
+        window.swap_buffers();
+        window.poll_events();
     }
-
-    glfwTerminate();
 }

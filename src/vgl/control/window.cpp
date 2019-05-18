@@ -23,13 +23,19 @@ vgl::Window::Window(int width, int height, const std::string& title, GLFWmonitor
     };
 }
 
-void vgl::Window::enable_gl(int major, int minor) const {
+void vgl::Window::enable_gl(int major, int minor) {
     glfwMakeContextCurrent(_ptr.get());
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
         throw std::runtime_error{ "Failed to initialize OpenGL." };
     }
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, major);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, minor);
+
+    cbs.framebuffer_size["default"] = [&](GLFWwindow*, int x, int y) {
+        if (x > 0 && y > 0) {
+            glViewport(0, 0, x, y);
+        }
+    };
 }
 
 void vgl::Window::poll_events() {
@@ -63,6 +69,10 @@ glm::ivec2 vgl::Window::framebuffer_size() {
     glm::ivec2 size;
     glfwGetFramebufferSize(_ptr.get(), &size.x, &size.y);
     return size;
+}
+
+vgl::Window::operator GLFWwindow* () {
+    return _ptr.get();
 }
 
 void vgl::Window::init_callbacks(GLFWwindow* ptr) {
