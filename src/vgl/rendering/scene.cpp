@@ -22,6 +22,16 @@ void vgl::Scene::move_to_center() {
         });
 }
 
+void process_scene_graph(std::vector<vgl::Scene_object>& objs, aiNode* node, glm::mat4 transform = glm::mat4(1.0f)) {
+    auto t = transform * glm::transpose(reinterpret_cast<glm::mat4&>(node->mTransformation));
+    for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
+        objs.at(node->mMeshes[i]).model = t;
+    }
+    for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+        process_scene_graph(objs, node->mChildren[i], t);
+    }
+}
+
 vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to_center,
     bool load_materials, bool load_textures) {
     if (!file::is_file(file_path)) {
@@ -166,6 +176,7 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
     if (move_to_center) {
         scene.move_to_center();
     }
+    process_scene_graph(scene.objects, ai_scene->mRootNode);
     importer.FreeScene();
     return scene;
 }
