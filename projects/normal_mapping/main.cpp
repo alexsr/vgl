@@ -58,7 +58,7 @@ int main() {
     auto cam_ssbo = vgl::gl::create_buffer(cam.get_cam_data(), GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, cam_ssbo);
 
-    vgl::gl::glprogram normal_mapping, lights_debug;
+    vgl::gl::glprogram normal_mapping, lights_debug, cubemap, cubemap_equirect;
 
     auto reload_shaders = [&]() {
         /*auto depth_prepass_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "shading/depth_prepass.vert").string()).contents;
@@ -70,10 +70,19 @@ int main() {
         auto normal_mapping_vs_source = glsp::preprocess_file((vgl::file::shaders_path
             / "shading/normal_mapping.vert").string()).contents;
         auto normal_mapping_fs_source = glsp::preprocess_file((vgl::file::shaders_path
-            / "shading/normal_mapping.frag").string()).contents;
+            / "shading/normal_cubemap.frag").string()).contents;
         auto normal_mapping_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, normal_mapping_vs_source);
         auto normal_mapping_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, normal_mapping_fs_source);
         normal_mapping = vgl::gl::create_program({ normal_mapping_vs, normal_mapping_fs });
+
+        auto cubemap_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "util/cubemap.vert").string()).contents;
+        auto cubemap_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "util/cubemap.frag").string()).contents;
+        auto cubemap_equirect_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "util/cubemap_equirectangular.frag").string()).contents;
+        auto cubemap_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, cubemap_vs_source);
+        auto cubemap_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, cubemap_fs_source);
+        auto cubemap_equirect_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, cubemap_equirect_fs_source);
+        cubemap = vgl::gl::create_program({ cubemap_vs, cubemap_fs });
+        cubemap_equirect = vgl::gl::create_program({ cubemap_vs, cubemap_equirect_fs });
 
         auto lights_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "debug/lights.vert").string()).contents;
         auto lights_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "debug/lights.frag").string()).contents;
@@ -96,6 +105,118 @@ int main() {
             cam.change_aspect_ratio(x / static_cast<float>(y));
             vgl::gl::update_full_buffer(cam_ssbo, cam.get_cam_data());
         }
+    };
+
+    struct Cubemap_config {
+        bool hdr = false;
+        float gamma = 2.2f;
+        float exposure = 1.0f;
+        int tone_mapping = 0;
+        bool cubemap_equirectangular = false;
+        bool cubemap_loaded = false;
+    } cm_conf;
+
+    auto cube_vao = vgl::gl::create_vertex_array();
+    auto cube_buffer = vgl::gl::create_buffer(vgl::geo::unit_cube);
+    glVertexArrayVertexBuffer(cube_vao, 0, cube_buffer, 0, sizeof(glm::vec3));
+    glEnableVertexArrayAttrib(cube_vao, 0);
+    glVertexArrayAttribFormat(cube_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribBinding(cube_vao, 0, 0);
+
+    auto cubemap_config_ssbo = vgl::gl::create_buffer(cm_conf, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, cubemap_config_ssbo);
+
+    vgl::gl::gltexture cubemap_texture;
+
+    auto cubemap_gui = [&]() {
+        if (ImGui::Begin("Cubemap")) {
+            if (ImGui::Button("Load cubemap faces")) {
+                auto files = vgl::file::open_multiple_files_dialog(vgl::file::resources_path / "images");
+                if (files) {
+                    if (files->size() == 6) {
+                        std::array<std::optional<vgl::Texture_info>, 6> face_textures;
+                        for (auto f : files.value()) {
+                            auto filename = f.filename().stem().string();
+                            auto face_name = filename.substr(filename.size() - 2, filename.size());
+                            if (face_name == "px") {
+                                face_textures.at(0) = vgl::Texture_info{ f, 4 };
+                            }
+                            else if (face_name == "nx") {
+                                face_textures.at(1) = vgl::Texture_info{ f, 4 };
+                            }
+                            else if (face_name == "py") {
+                                face_textures.at(2) = vgl::Texture_info{ f, 4 };
+                            }
+                            else if (face_name == "ny") {
+                                face_textures.at(3) = vgl::Texture_info{ f, 4 };
+                            }
+                            else if (face_name == "pz") {
+                                face_textures.at(4) = vgl::Texture_info{ f, 4 };
+                            }
+                            else if (face_name == "nz") {
+                                face_textures.at(5) = vgl::Texture_info{ f, 4 };
+                            }
+                        }
+                        bool all_faces_present = true;
+                        for (const auto& f : face_textures) {
+                            all_faces_present &= f.has_value();
+                        }
+                        if (all_faces_present) {
+                            cubemap_texture = vgl::gl::create_texture(GL_TEXTURE_CUBE_MAP);
+                            auto def = vgl::file::load_tex_def(face_textures.at(0).value());
+                            glTextureStorage2D(cubemap_texture, 6, def.internal_format, def.image_size.x, def.image_size.y);
+                            for (size_t i = 0; i < face_textures.size(); ++i) {
+                                const auto f = face_textures.at(i).value();
+                                auto filename = f.file_path.filename().stem().string();
+                                auto tex_data = vgl::file::load_texture(f);
+                                std::cout << filename << "\n";
+                                vgl::gl::set_cubemap_data(cubemap_texture, tex_data, i);
+                            }
+                            glTextureParameteri(cubemap_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                            glTextureParameteri(cubemap_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                            glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                            glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                            glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+                            cm_conf.hdr = def.type == GL_FLOAT;
+                            vgl::gl::update_uniform(cubemap, 0, vgl::gl::get_texture_handle(cubemap_texture));
+                            cubemap_config_ssbo = vgl::gl::create_buffer(cm_conf, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
+                            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, cubemap_config_ssbo);
+                            cm_conf.cubemap_equirectangular = false;
+                            cm_conf.cubemap_loaded = true;
+                        }
+                    }
+                }
+            }
+            if (ImGui::Button("Load equirectangular map as cubemap")) {
+                auto file = vgl::file::open_file_dialog(vgl::file::resources_path / "images", "jpg,png,hdr");
+                if (file) {
+                    vgl::Texture_info tex_info{ file.value(), 4 };
+                    auto tex_data = vgl::file::load_texture(tex_info);
+                    cubemap_texture = vgl::gl::create_texture(GL_TEXTURE_2D);
+                    glTextureStorage2D(cubemap_texture, 1, tex_data.def.internal_format,
+                        tex_data.def.image_size.x, tex_data.def.image_size.y);
+                    vgl::gl::set_texture_data_2d(cubemap_texture, tex_data);
+                    glTextureParameteri(cubemap_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                    glTextureParameteri(cubemap_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                    glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                    glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+                    cm_conf.hdr = tex_data.def.type == GL_FLOAT;
+                    vgl::gl::update_uniform(cubemap_equirect, 0, vgl::gl::get_texture_handle(cubemap_texture));
+                    cubemap_config_ssbo = vgl::gl::create_buffer(cm_conf, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, cubemap_config_ssbo);
+                    cm_conf.cubemap_equirectangular = true;
+                    cm_conf.cubemap_loaded = true;
+                }
+            }
+            ImGui::Combo("Tonemapping", &cm_conf.tone_mapping, "Linear\0Reinhard\0Hejl and Burgess-Dawson\0Uncharted 2\0\0");
+            ImGui::DragFloat("Gamma", &cm_conf.gamma, 0.01f);
+            ImGui::DragFloat("Exposure", &cm_conf.exposure, 0.01f);
+            if (cm_conf.cubemap_loaded) {
+                vgl::gl::update_full_buffer(cubemap_config_ssbo, cm_conf);
+            }
+        }
+        ImGui::End();
     };
 
     auto debug_vao = vgl::gl::create_vertex_array();
@@ -179,6 +300,7 @@ int main() {
         frames++;
         previous = current;
         current = high_res_clock::now();
+        cubemap_gui();
         if (ImGui::Begin("Settings")) {
             if (ImGui::CollapsingHeader("Light settings", ImGuiTreeNodeFlags_DefaultOpen)) {
                 if (ImGui::Button("Add light")) {
@@ -235,6 +357,22 @@ int main() {
             if (window.key[GLFW_KEY_R]) {
                 reload_shaders();
                 vgl::gl::update_uniform(normal_mapping, 0, vgl::gl::get_texture_handle(normal_map_tex));
+                if (cm_conf.cubemap_equirectangular) {
+                    vgl::gl::update_uniform(cubemap_equirect, 0, vgl::gl::get_texture_handle(cubemap_texture));
+                }
+                else {
+                    vgl::gl::update_uniform(cubemap, 0, vgl::gl::get_texture_handle(cubemap_texture));
+                }
+            }
+        }
+        if (cm_conf.cubemap_loaded) {
+            if (cm_conf.cubemap_equirectangular) {
+                vgl::gl::update_uniform(normal_mapping, 2, vgl::gl::get_texture_handle(cubemap_texture));
+                vgl::gl::update_uniform(normal_mapping, 3, true);
+            }
+            else {
+                vgl::gl::update_uniform(normal_mapping, 1, vgl::gl::get_texture_handle(cubemap_texture));
+                vgl::gl::update_uniform(normal_mapping, 3, false);
             }
         }
         demo::update_cam(cam, window, dt);
@@ -247,6 +385,18 @@ int main() {
         glUseProgram(normal_mapping);
         glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
             static_cast<unsigned int>(scene.draw_cmds.size()), 0);
+        if (cm_conf.cubemap_loaded) {
+            glDepthFunc(GL_LEQUAL);
+            if (cm_conf.cubemap_equirectangular) {
+                glUseProgram(cubemap_equirect);
+            }
+            else {
+                glUseProgram(cubemap);
+            }
+            glBindVertexArray(cube_vao);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 14);
+            glDepthFunc(GL_LESS);
+        }
         gui.render();
         window.swap_buffers();
         demo::hide_cursor(window);
