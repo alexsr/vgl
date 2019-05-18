@@ -20,7 +20,9 @@ namespace vgl {
     };
 
     namespace file {
+        Tex_def load_tex_def(const std::filesystem::path& file_path, int channels = 4);
         Tex_def load_tex_def(const Texture_info& tex_info);
+        Tex_data load_texture(const std::filesystem::path& file_path, int channels = 4, bool flip = false);
         Tex_data load_texture(const Texture_info& tex_info, bool flip = false);
         std::vector<Tex_data> load_textures(const std::vector<Texture_info>& textures);
     }
