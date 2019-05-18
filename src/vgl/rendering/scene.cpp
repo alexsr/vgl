@@ -22,6 +22,39 @@ void vgl::Scene::move_to_center() {
         });
 }
 
+template<typename T>
+void merge_vectors(std::vector<T>& a, std::vector<T>& b) {
+    auto prev_size = a.size();
+    a.resize(a.size() + b.size());
+    std::move(b.begin(), b.end(), a.begin() + prev_size);
+}
+
+void vgl::Scene::join_copy(const Scene& s) {
+    auto s_copy = s;
+    join(s_copy);
+}
+
+void vgl::Scene::join(Scene& s) {
+    scene_bounds.join(s.scene_bounds);
+    auto base_vertex_offset = vertices.size();
+    merge_vectors(vertices, s.vertices);
+    merge_vectors(indices, s.indices);
+    merge_vectors(object_bounds, s.object_bounds);
+    merge_vectors(objects, s.objects);
+    merge_vectors(materials, s.materials);
+    merge_vectors(textures, s.textures);
+    auto offset = draw_cmds.size();
+    auto other_draw_size = s.draw_cmds.size();
+    merge_vectors(draw_cmds, s.draw_cmds);
+    if (offset > 0) {
+        for (size_t i = 0; i < other_draw_size; ++i) {
+            draw_cmds.at(offset + i).first_index += draw_cmds.at(offset - 1).count + draw_cmds.at(offset - 1).first_index;
+            draw_cmds.at(offset + i).base_vertex += draw_cmds.at(offset - 1).base_vertex
+                + static_cast<unsigned int>(base_vertex_offset);
+        }
+    }
+}
+
 void process_scene_graph(std::vector<vgl::Scene_object>& objs, aiNode* node, glm::mat4 transform = glm::mat4(1.0f)) {
     auto t = transform * glm::transpose(reinterpret_cast<glm::mat4&>(node->mTransformation));
     for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
@@ -144,6 +177,9 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
             bounds.max = glm::max(bounds.max, scene.vertices[scene_i].pos);
             if (ai_mesh->HasNormals()) {
                 scene.vertices[scene_i].normal = glm::vec4(reinterpret_cast<glm::vec3&>(ai_mesh->mNormals[i]), 0.0f);
+            }
+            if (ai_mesh->HasTangentsAndBitangents()) {
+                scene.vertices[scene_i].tangent = glm::vec4(reinterpret_cast<glm::vec3&>(ai_mesh->mTangents[i]), 0.0f);
             }
             if (ai_mesh->HasTextureCoords(0)) {
                 scene.vertices[scene_i].uv = glm::vec4(reinterpret_cast<glm::vec2&>(ai_mesh->mTextureCoords[0][i]), 0.0f, 0.0f);

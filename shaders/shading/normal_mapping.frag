@@ -9,7 +9,7 @@ layout (location = 3) in vec3 _cam_pos;
 layout (location = 4) in flat int _mat_id;
 layout (location = 5) in flat int _tex_diffuse;
 layout (location = 6) in flat int _tex_specular;
-layout (location = 7) in mat3 _inv_t_model;
+layout (location = 7) in mat3 _from_tspace;
 
 layout (location = 0) out vec4 _color;
 
@@ -30,6 +30,8 @@ layout (std430, binding = TEXTURE_REFS_BINDING) buffer tex_ref_buffer {
     sampler2D textures[];
 };
 
+layout (location = 0, bindless_sampler) uniform sampler2D n_map;
+
 void main() {
     _color.rgb = vec3(0);
     if (_mat_id != -1) {
@@ -37,7 +39,7 @@ void main() {
         vec3 specular_color = materials[_mat_id].specular.rgb;
         float shininess = materials[_mat_id].specular.w;
         vec4 diffuse_color = materials[_mat_id].diffuse;
-        vec3 normal = normalize(_inv_t_model * _normal);
+        vec3 normal = (normalize(_from_tspace * (normalize(texture(n_map, _uv).xyz * 2.0 - 1.0))));
         if (textures.length() > 0) {
             if (_tex_diffuse != -1) {
                 diffuse_color = texture(textures[_tex_diffuse], _uv);

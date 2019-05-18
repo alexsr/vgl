@@ -7,8 +7,14 @@ layout (local_size_x = 64) in;
 #include "../include/bounds.glsl"
 #include "../include/draw_cmd.glsl"
 
+#include "../include/scene_object.glsl"
+
 layout (std430, binding = CAM_BINDING) buffer cam_buffer {
     Camera cam;
+};
+
+layout (std430, binding = SCENE_OBJECT_BINDING) buffer scene_object_buffer {
+    Scene_object objects[];
 };
 
 layout (std430, binding = BOUNDS_BINDING) buffer bounds_buffer {
@@ -31,8 +37,8 @@ void main() {
         return;
     }
     mat4 vp = cam.proj * cam.view;
-    vec4 bmin = vec4(bounds[id].bmin.xyz, 1.0);
-    vec4 bmax = vec4(bounds[id].bmax.xyz, 1.0);
+    vec4 bmin = objects[id].model * vec4(bounds[id].bmin.xyz, 1.0);
+    vec4 bmax = objects[id].model * vec4(bounds[id].bmax.xyz, 1.0);
     vec4 vertices[8] = { vp * bmin,
         vp * vec4(bmin.xy, bmax.zw),
         vp * vec4(bmin.x, bmax.y, bmin.zw),

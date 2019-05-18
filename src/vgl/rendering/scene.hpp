@@ -39,12 +39,15 @@ namespace vgl
         std::vector<Texture_info> textures;
 
         void move_to_center();
+        void join_copy(const Scene& s);
+        void join(Scene& s);
     };
 
     namespace impl {
-        constexpr unsigned int aiprocess_flags = aiProcess_ImproveCacheLocality
-            | aiProcess_FindDegenerates | aiProcess_FindInvalidData | aiProcess_RemoveRedundantMaterials |
-            aiProcess_GenSmoothNormals | aiProcess_Triangulate | aiProcess_GenUVCoords | aiProcess_SortByPType;
+        constexpr unsigned int aiprocess_flags = aiProcess_ImproveCacheLocality | aiProcess_JoinIdenticalVertices
+            | aiProcess_CalcTangentSpace | aiProcess_FindDegenerates | aiProcess_FindInvalidData
+            | aiProcess_RemoveRedundantMaterials | aiProcess_GenSmoothNormals | aiProcess_Triangulate
+            | aiProcess_GenUVCoords | aiProcess_SortByPType;
     }
 
     Scene load_scene(const std::filesystem::path& file_path, bool move_to_center = false,

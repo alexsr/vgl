@@ -9,6 +9,7 @@ namespace vgl
     struct Vertex {
         glm::vec4 pos{};
         glm::vec4 normal{};
+        glm::vec4 tangent{};
         glm::vec4 uv{};
     };
 
