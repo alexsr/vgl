@@ -7,7 +7,7 @@
 #include <string>
 
 namespace vgl::gl {
-    inline void compile_shader(const GLuint shader) {
+    inline void compile_shader(const GLuint shader) noexcept(false) {
         glCompileShader(shader);
         GLint compile_status = 0;
         glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_status);

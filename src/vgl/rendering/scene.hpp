@@ -5,7 +5,7 @@
 #include "geometry.hpp"
 #include "material.hpp"
 #include "vgl/gpu_api/gl/multidraw.hpp"
-#include "tex_info.hpp"
+#include "vgl/file/image_file.hpp"
 #include "glm/mat4x4.hpp"
 #include "assimp/postprocess.h"
 
@@ -36,7 +36,7 @@ namespace vgl
         std::vector<Scene_object> objects;
         std::vector<gl::Indirect_elements_command> draw_cmds;
         std::vector<Material> materials;
-        std::vector<Texture_info> textures;
+        std::vector<Image_info> textures;
 
         void move_to_center();
         void join_copy(const Scene& s);
@@ -51,5 +51,5 @@ namespace vgl
     }
 
     Scene load_scene(const std::filesystem::path& file_path, bool move_to_center = false,
-        bool load_materials = true, bool load_textures = true);
+        bool load_materials = true, bool load_images = true);
 }

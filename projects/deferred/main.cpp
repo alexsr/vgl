@@ -278,7 +278,7 @@ int main() {
                     glFinish();
                     scene = vgl::load_scene(file.value(), true);
                     textures.resize(scene.textures.size());
-                    auto tex_data = vgl::file::load_textures(scene.textures);
+                    auto tex_data = vgl::file::load_images(scene.textures);
                     std::vector<GLuint64> tex_handles(scene.textures.size());
                     for (auto i = 0; i < scene.textures.size(); ++i) {
                         textures.at(i) = vgl::gl::create_texture(GL_TEXTURE_2D);
@@ -286,8 +286,8 @@ int main() {
                         glTextureParameteri(textures.at(i), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                         glTextureParameteri(textures.at(i), GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
                         glTextureParameteri(textures.at(i), GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-                        glTextureStorage2D(textures.at(i), 1, tex_data.at(i).def.internal_format,
-                            tex_data.at(i).def.image_size.x, tex_data.at(i).def.image_size.y);
+                        glTextureStorage2D(textures.at(i), 1, tex_data.at(i).desc.internal_format,
+                            tex_data.at(i).desc.image_size.x, tex_data.at(i).desc.image_size.y);
                         vgl::gl::set_texture_data_2d(textures.at(i), tex_data.at(i));
                         tex_handles.at(i) = vgl::gl::get_texture_handle(textures.at(i));
                     }
@@ -326,27 +326,27 @@ int main() {
                     auto files = vgl::file::open_multiple_files_dialog(vgl::file::resources_path / "images");
                     if (files) {
                         if (files->size() == 6) {
-                            std::array<std::optional<vgl::Texture_info>, 6> face_textures;
+                            std::array<std::optional<vgl::Image_info>, 6> face_textures;
                             for (auto f : files.value()) {
                                 auto filename = f.filename().stem().string();
                                 auto face_name = filename.substr(filename.size() - 2, filename.size());
                                 if (face_name == "px") {
-                                    face_textures.at(0) = vgl::Texture_info{ f, 4 };
+                                    face_textures.at(0) = vgl::Image_info{ f, 4 };
                                 }
                                 else if (face_name == "nx") {
-                                    face_textures.at(1) = vgl::Texture_info{ f, 4 };
+                                    face_textures.at(1) = vgl::Image_info{ f, 4 };
                                 }
                                 else if (face_name == "py") {
-                                    face_textures.at(2) = vgl::Texture_info{ f, 4 };
+                                    face_textures.at(2) = vgl::Image_info{ f, 4 };
                                 }
                                 else if (face_name == "ny") {
-                                    face_textures.at(3) = vgl::Texture_info{ f, 4 };
+                                    face_textures.at(3) = vgl::Image_info{ f, 4 };
                                 }
                                 else if (face_name == "pz") {
-                                    face_textures.at(4) = vgl::Texture_info{ f, 4 };
+                                    face_textures.at(4) = vgl::Image_info{ f, 4 };
                                 }
                                 else if (face_name == "nz") {
-                                    face_textures.at(5) = vgl::Texture_info{ f, 4 };
+                                    face_textures.at(5) = vgl::Image_info{ f, 4 };
                                 }
                             }
                             bool all_faces_present = true;
@@ -355,12 +355,12 @@ int main() {
                             }
                             if (all_faces_present) {
                                 cubemap_texture = vgl::gl::create_texture(GL_TEXTURE_CUBE_MAP);
-                                auto def = vgl::file::load_tex_def(face_textures.at(0).value());
-                                glTextureStorage2D(cubemap_texture, 6, def.internal_format, def.image_size.x, def.image_size.y);
+                                auto desc = vgl::file::retrieve_image_desc(face_textures.at(0).value());
+                                glTextureStorage2D(cubemap_texture, 6, desc.internal_format, desc.image_size.x, desc.image_size.y);
                                 for (size_t i = 0; i < face_textures.size(); ++i) {
                                     const auto f = face_textures.at(i).value();
                                     auto filename = f.file_path.filename().stem().string();
-                                    auto tex_data = vgl::file::load_texture(f);
+                                    auto tex_data = vgl::file::load_image(f);
                                     std::cout << filename << "\n";
                                     vgl::gl::set_cubemap_data(cubemap_texture, tex_data, i);
                                 }
@@ -369,7 +369,7 @@ int main() {
                                 glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
                                 glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                                 glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-                                config.cm_conf.hdr = def.type == GL_FLOAT;
+                                config.cm_conf.hdr = desc.type == GL_FLOAT;
                                 vgl::gl::update_uniform(cubemap, 0, vgl::gl::get_texture_handle(cubemap_texture));
                                 cubemap_config_ssbo = vgl::gl::create_buffer(config.cm_conf, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
                                 glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, cubemap_config_ssbo);
@@ -381,18 +381,18 @@ int main() {
                 if (ImGui::MenuItem("Load equirectangular map as cubemap")) {
                     auto file = vgl::file::open_file_dialog(vgl::file::resources_path / "images", "jpg,png,hdr");
                     if (file) {
-                        vgl::Texture_info tex_info{ file.value(), 4 };
-                        auto tex_data = vgl::file::load_texture(tex_info);
+                        vgl::Image_info tex_info{ file.value(), 4 };
+                        auto tex_data = vgl::file::load_image(tex_info);
                         cubemap_texture = vgl::gl::create_texture(GL_TEXTURE_2D);
-                        glTextureStorage2D(cubemap_texture, 1, tex_data.def.internal_format,
-                            tex_data.def.image_size.x, tex_data.def.image_size.y);
+                        glTextureStorage2D(cubemap_texture, 1, tex_data.desc.internal_format,
+                            tex_data.desc.image_size.x, tex_data.desc.image_size.y);
                         vgl::gl::set_texture_data_2d(cubemap_texture, tex_data);
                         glTextureParameteri(cubemap_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                         glTextureParameteri(cubemap_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                         glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
                         glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                         glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-                        config.cm_conf.hdr = tex_data.def.type == GL_FLOAT;
+                        config.cm_conf.hdr = tex_data.desc.type == GL_FLOAT;
                         vgl::gl::update_uniform(cubemap_equirect, 0, vgl::gl::get_texture_handle(cubemap_texture));
                         cubemap_config_ssbo = vgl::gl::create_buffer(config.cm_conf, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
                         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, cubemap_config_ssbo);

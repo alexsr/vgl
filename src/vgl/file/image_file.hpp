@@ -4,26 +4,31 @@
 #include <vector>
 #include <variant>
 #include <stb/stb_image.h>
-#include "vgl/rendering/tex_info.hpp"
+#include <filesystem>
 
 namespace vgl {
-    struct Tex_def {
+    struct Image_info {
+        std::filesystem::path file_path;
+        int channels{};
+    };
+
+    struct Image_desc {
         glm::ivec2 image_size;
         unsigned int format;
         unsigned int internal_format;
         unsigned int type;
     };
 
-    struct Tex_data {
+    struct Image {
         std::variant<stbi_uc*, stbi_us*, float*> ptr;
-        Tex_def def;
+        Image_desc desc;
     };
 
     namespace file {
-        Tex_def load_tex_def(const std::filesystem::path& file_path, int channels = 4);
-        Tex_def load_tex_def(const Texture_info& tex_info);
-        Tex_data load_texture(const std::filesystem::path& file_path, int channels = 4, bool flip = false);
-        Tex_data load_texture(const Texture_info& tex_info, bool flip = false);
-        std::vector<Tex_data> load_textures(const std::vector<Texture_info>& textures);
+        Image_desc retrieve_image_desc(const std::filesystem::path& file_path, int channels = 4);
+        Image_desc retrieve_image_desc(const Image_info& tex_info);
+        Image load_image(const std::filesystem::path& file_path, int channels = 4, bool flip = false);
+        Image load_image(const Image_info& tex_info, bool flip = false);
+        std::vector<Image> load_images(const std::vector<Image_info>& textures);
     }
 }

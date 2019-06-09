@@ -268,7 +268,7 @@ int main() {
                     glFinish();
                     scene = vgl::load_scene(file.value());
                     textures.resize(scene.textures.size());
-                    auto tex_data = vgl::file::load_textures(scene.textures);
+                    auto tex_data = vgl::file::load_images(scene.textures);
                     std::vector<GLuint64> tex_handles(scene.textures.size());
                     for (auto i = 0; i < scene.textures.size(); ++i) {
                         textures.at(i) = vgl::gl::create_texture(GL_TEXTURE_2D);
@@ -276,8 +276,8 @@ int main() {
                         glTextureParameteri(textures.at(i), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                         glTextureParameteri(textures.at(i), GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
                         glTextureParameteri(textures.at(i), GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-                        glTextureStorage2D(textures.at(i), 1, tex_data.at(i).def.internal_format,
-                            tex_data.at(i).def.image_size.x, tex_data.at(i).def.image_size.y);
+                        glTextureStorage2D(textures.at(i), 1, tex_data.at(i).desc.internal_format,
+                            tex_data.at(i).desc.image_size.x, tex_data.at(i).desc.image_size.y);
                         vgl::gl::set_texture_data_2d(textures.at(i), tex_data.at(i));
                         tex_handles.at(i) = vgl::gl::get_texture_handle(textures.at(i));
                     }

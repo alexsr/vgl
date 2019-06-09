@@ -66,7 +66,7 @@ void process_scene_graph(std::vector<vgl::Scene_object>& objs, aiNode* node, glm
 }
 
 vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to_center,
-    bool load_materials, bool load_textures) {
+    bool load_materials, bool load_images) {
     if (!file::is_file(file_path)) {
         throw std::runtime_error{ "File not found." }; // TODO
     }
@@ -104,7 +104,7 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
             if (ai_tex_available == AI_SUCCESS && file::is_file(file_path)) {
                 diffuse_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ tex_path, 4 });
+                    scene.textures.emplace_back(Image_info{ tex_path, 4 });
                 }
             }
             /*ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_NORMALS(0), path);
@@ -112,7 +112,7 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
             if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 normal_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ tex_path, 3 });
+                    scene.textures.emplace_back(Image_info{ tex_path, 3 });
                 }
             }*/
             ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_SPECULAR(0), path);
@@ -120,7 +120,7 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
             if (ai_tex_available == AI_SUCCESS && file::is_file(file_path)) {
                 specular_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ tex_path, 4 });
+                    scene.textures.emplace_back(Image_info{ tex_path, 4 });
                 }
             }
             /*ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_EMISSIVE(0), path);
@@ -128,7 +128,7 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
             if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 emissive_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ tex_path, 4 });
+                    scene.textures.emplace_back(Image_info{ tex_path, 4 });
                 }
             }
             ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_HEIGHT(0), path);
@@ -136,7 +136,7 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
             if (ai_tex_available == AI_SUCCESS && is_file(file_path)) {
                 height_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Texture_info{ tex_path, 1 });
+                    scene.textures.emplace_back(Image_info{ tex_path, 1 });
                 }
             }*/
         }
