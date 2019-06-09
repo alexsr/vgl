@@ -24,24 +24,20 @@ int main() {
 
     auto vertex_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "minimal/texture.vert").string()).contents;
     auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, vertex_shader_source);
-    auto monochrome_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/monochrome.frag").string()).contents;
+    auto monochrome_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/monochrome.frag").string()).contents;
     auto monochrome_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, monochrome_shader_source);
-    auto sobel_first_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "filters/sobel_xy_first_pass.frag").string()).contents;
-    auto sobel_first_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, sobel_first_source);
-    auto sobel_second_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "filters/sobel_xy_second_pass.frag").string()).contents;
-    auto sobel_second_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, sobel_second_source);
+    auto sobel_source = glsp::preprocess_file((vgl::file::shaders_path
+        / "cv/filters/sobel_xy.frag").string()).contents;
+    auto sobel_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, sobel_source);
     auto shi_tomasi_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "corner_detection/shi_tomasi.frag").string()).contents;
+        / "cv/corner_detection/shi_tomasi.frag").string()).contents;
     auto shi_tomasi_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, shi_tomasi_source);
     auto non_max_suppression_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "corner_detection/non_max_suppression_overlay.frag").string()).contents;
+        / "cv/corner_detection/non_max_suppression_overlay.frag").string()).contents;
     auto non_max_suppression_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, non_max_suppression_source);
 
     const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});
-    const auto sobel_xy_first = vgl::gl::create_program({vertex_shader, sobel_first_shader});
-    const auto sobel_xy_second = vgl::gl::create_program({vertex_shader, sobel_second_shader});
+    const auto sobel_xy = vgl::gl::create_program({vertex_shader, sobel_shader});
     const auto shi_tomasi = vgl::gl::create_program({vertex_shader, shi_tomasi_shader});
     const auto non_max_suppression = vgl::gl::create_program({vertex_shader, non_max_suppression_shader});
 
@@ -112,12 +108,14 @@ int main() {
         glBindFramebuffer(GL_FRAMEBUFFER, monochrome_fb);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        glUseProgram(sobel_xy_first);
+        glUseProgram(sobel_xy);
+        vgl::gl::update_uniform(sobel_xy, 0, 0);
         glBindTextureUnit(0, monochrome_tex);
         glBindFramebuffer(GL_FRAMEBUFFER, sobel_fb);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        glUseProgram(sobel_xy_second);
+        glUseProgram(sobel_xy);
+        vgl::gl::update_uniform(sobel_xy, 0, 1);
         glBindTextureUnit(0, sobel_tex);
         glBindFramebuffer(GL_FRAMEBUFFER, monochrome_fb);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

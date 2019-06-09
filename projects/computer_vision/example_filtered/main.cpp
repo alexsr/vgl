@@ -23,7 +23,7 @@ int main() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     auto vertex_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "minimal/texture.vert").string()).contents;
-    auto frag_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/texture_filters.frag").string()).contents;
+    auto frag_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/texture_filters.frag").string()).contents;
     auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, vertex_shader_source);
     auto frag_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, frag_shader_source);
 

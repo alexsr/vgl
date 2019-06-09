@@ -24,11 +24,11 @@ int main() {
 
     auto vertex_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "minimal/texture.vert").string()).contents;
     auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, vertex_shader_source);
-    auto monochrome_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/monochrome.frag").string()).contents;
+    auto monochrome_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/monochrome.frag").string()).contents;
     auto monochrome_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, monochrome_shader_source);
-    auto moravec_min_E_source = glsp::preprocess_file((vgl::file::shaders_path / "corner_detection/moravec_min_E.frag").string()).contents;
+    auto moravec_min_E_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/corner_detection/moravec_min_E.frag").string()).contents;
     auto moravec_min_E_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, moravec_min_E_source);
-    auto moravec_draw_corner_source = glsp::preprocess_file((vgl::file::shaders_path / "corner_detection/non_max_suppression_overlay.frag").string()).contents;
+    auto moravec_draw_corner_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/corner_detection/non_max_suppression_overlay.frag").string()).contents;
     auto moravec_draw_corner_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, moravec_draw_corner_source);
 
     const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});

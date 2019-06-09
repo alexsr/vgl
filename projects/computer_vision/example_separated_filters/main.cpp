@@ -24,9 +24,9 @@ int main() {
 
     auto vertex_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "minimal/texture.vert").string()).contents;
     auto first_pass_shader_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "filters/separated_first_pass.frag").string()).contents;
+        / "cv/filters/separated_first_pass.frag").string()).contents;
     auto second_pass_shader_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "filters/separated_second_pass.frag").string()).contents;
+        / "cv/filters/separated_second_pass.frag").string()).contents;
     auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, vertex_shader_source);
     auto first_pass_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, first_pass_shader_source);
     auto second_pass_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, second_pass_shader_source);

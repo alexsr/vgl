@@ -5,33 +5,28 @@ if(${CMAKE_VERSION} VERSION_LESS 3.12)
 endif()
 
 add_executable(example_filtered example_filtered/main.cpp)
-target_link_libraries(example_filtered PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
-							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+target_link_libraries(example_filtered PUBLIC vgl)
 
 add_executable(example_separated_filters example_separated_filters/main.cpp)
-target_link_libraries(example_separated_filters PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
-							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+target_link_libraries(example_separated_filters PUBLIC vgl)
 
 add_executable(laplacian_of_gaussian laplacian_of_gaussian/main.cpp)
-target_link_libraries(laplacian_of_gaussian PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
-							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+target_link_libraries(laplacian_of_gaussian PUBLIC vgl)
 
 add_executable(difference_of_gaussian difference_of_gaussian/main.cpp)
-target_link_libraries(difference_of_gaussian PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
-							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+target_link_libraries(difference_of_gaussian PUBLIC vgl)
 
 add_executable(moravec moravec/main.cpp)
-target_link_libraries(moravec PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
-							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+target_link_libraries(moravec PUBLIC vgl)
 
 add_executable(harris harris/main.cpp)
-target_link_libraries(harris PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
-							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+target_link_libraries(harris PUBLIC vgl)
 
 add_executable(shi_tomasi shi_tomasi/main.cpp)
-target_link_libraries(shi_tomasi PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
-							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+target_link_libraries(shi_tomasi PUBLIC vgl)
 
 add_executable(canny canny/main.cpp)
-target_link_libraries(canny PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp
-							stb::stb imgui::imgui glm::glm nativefiledialog vgl)
+target_link_libraries(canny PUBLIC vgl)
+
+add_executable(rot13 rot13/main.cpp)
+target_link_libraries(rot13 PUBLIC vgl)

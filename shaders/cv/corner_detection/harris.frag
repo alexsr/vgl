@@ -9,8 +9,8 @@ layout (location = 1) uniform float sensitivity;
 
 layout (location = 0) out vec4 _color;
 
-#include "../include/matrix_op.glsl"
-#include "../include/math_consts.glsl"
+#include "../../include/matrix_op.glsl"
+#include "../../include/math_consts.glsl"
 
 void main() {
     ivec2 tex_size = textureSize(sobel, 0);

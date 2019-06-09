@@ -8,9 +8,9 @@ layout (location = 0) uniform int kernel_size;
 
 layout (location = 0) out vec4 _color;
 
-#include "../include/matrix_op.glsl"
-#include "../include/math_consts.glsl"
-#include "../include/eigen.glsl"
+#include "../../include/matrix_op.glsl"
+#include "../../include/math_consts.glsl"
+#include "../../include/eigen.glsl"
 
 void main() {
     ivec2 tex_size = textureSize(sobel, 0);

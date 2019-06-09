@@ -11,7 +11,7 @@ layout (location = 2) uniform float strength;
 
 layout (location = 0) out vec4 _color;
 
-#include "../include/binomial.glsl"
+#include "../../include/binomial.glsl"
 
 #define PI 3.1415926535897932384626433832795
 

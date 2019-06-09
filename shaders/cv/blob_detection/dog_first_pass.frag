@@ -7,9 +7,9 @@ layout (binding = 0) uniform sampler2D tex;
 layout (location = 0) uniform int in_kernel_small;
 layout (location = 1) uniform int in_kernel_large;
 
-layout (location = 0) out vec4 _color;
+layout (location = 0) out vec2 _color;
 
-#include "../include/math_consts.glsl"
+#include "../../include/math_consts.glsl"
 
 void main() {
     int kernel_small = min(in_kernel_small, in_kernel_large);
@@ -28,7 +28,7 @@ void main() {
     float mean_large = 0.0;
     float gauss_sum_large = 0.0;
     for (float i = -kernel_large_half; i <= kernel_large_half; i++) {
-        float value = texture(tex, _uv + uv_offset * vec2(0, i)).r;
+        float value = texture(tex, _uv + uv_offset * vec2(i, 0)).r;
         float gauss = denom_large * exp(-(i * i) / sigma2_large);
         mean_large += gauss * value;
         gauss_sum_large += gauss;
@@ -36,5 +36,5 @@ void main() {
         mean_small += gauss * value;
         gauss_sum_small += gauss;
     }
-    _color = sigma2_small / (sigma2_large - sigma2_small) * vec4(mean_large / gauss_sum_large - mean_small / gauss_sum_small) * 10.0;
+    _color.rg = vec2(mean_small / gauss_sum_small, mean_large / gauss_sum_large);
 }

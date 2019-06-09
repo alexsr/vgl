@@ -9,7 +9,7 @@ layout (location = 1) uniform float threshold;
 
 layout (location = 0) out float _color;
 
-#include "../include/math_consts.glsl"
+#include "../../include/math_consts.glsl"
 
 void main() {
     ivec2 tex_size = textureSize(tex, 0);

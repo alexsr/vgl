@@ -24,29 +24,26 @@ int main() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     auto vertex_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "minimal/texture.vert").string()).contents;
-    auto gauss_x_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/gauss_x.frag").string()).contents;
-    auto gauss_y_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/gauss_y.frag").string()).contents;
+    auto gauss_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/gauss.frag").string()).contents;
     auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, vertex_shader_source);
-    auto gauss_x_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, gauss_x_source);
-    auto gauss_y_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, gauss_y_source);
-    const auto gauss_x = vgl::gl::create_program({ vertex_shader, gauss_x_shader });
-    const auto gauss_y = vgl::gl::create_program({ vertex_shader, gauss_y_shader });
+    auto gauss_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, gauss_source);
+    const auto gauss = vgl::gl::create_program({ vertex_shader, gauss_shader });
 
-    auto monochrome_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/monochrome.frag").string()).contents;
+    auto monochrome_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/monochrome.frag").string()).contents;
     auto monochrome_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, monochrome_source);
 
-    auto sobel_first_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/sobel_xy_first_pass.frag").string()).contents;
+    auto sobel_first_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/sobel_xy.frag").string()).contents;
     auto sobel_first_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, sobel_first_source);
 
-    auto sobel_second_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/sobel_xy_angle.frag").string()).contents;
+    auto sobel_second_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/sobel_xy_angle.frag").string()).contents;
     auto sobel_second_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, sobel_second_source);
 
     auto non_max_suppression_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "edge_detection/canny_non_max_suppression.frag").string()).contents;
+        / "cv/edge_detection/canny_non_max_suppression.frag").string()).contents;
     auto non_max_suppression_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, non_max_suppression_source);
 
     auto double_threshold_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "edge_detection/canny_double_threshold.frag").string()).contents;
+        / "cv/edge_detection/canny_double_threshold.frag").string()).contents;
     auto double_threshold_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, double_threshold_source);
 
     const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});
@@ -113,22 +110,23 @@ int main() {
             ImGui::DragFloat("Threshold non max", &non_max_threshold, 0.01f);
             ImGui::DragFloat("Threshold low", &threshold_low, 0.01f, 0.0f, threshold_high);
             ImGui::DragFloat("Threshold high", &threshold_high, 0.01f, threshold_low, 100.0f);
-            glProgramUniform1i(gauss_x, 0, kernel_size);
-            glProgramUniform1i(gauss_y, 0, kernel_size);
+            glProgramUniform1i(gauss, 0, kernel_size);
             glProgramUniform1i(non_max_suppression, 0, non_max_size);
             glProgramUniform1f(non_max_suppression, 1, non_max_threshold);
             glProgramUniform1f(double_threshold, 0, threshold_low);
             glProgramUniform1f(double_threshold, 1, threshold_high);
         }
         ImGui::End();
-        glUseProgram(gauss_x);
+        glUseProgram(gauss);
+        vgl::gl::update_uniform(gauss, 1, 0);
         glBindTextureUnit(0, tex_id);
         glViewport(0, 0, image_size.x, image_size.y);
         glBindFramebuffer(GL_FRAMEBUFFER, monochrome_fb);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBindVertexArray(screen_vao);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        glUseProgram(gauss_y);
+        glUseProgram(gauss);
+        vgl::gl::update_uniform(gauss, 1, 1);
         glBindTextureUnit(0, monochrome_tex);
         glBindFramebuffer(GL_FRAMEBUFFER, sobel_fb);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

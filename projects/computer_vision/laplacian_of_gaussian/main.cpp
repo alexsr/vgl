@@ -24,18 +24,15 @@ int main() {
 
     auto vertex_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "minimal/texture.vert").string()).contents;
     auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, vertex_shader_source);
-    auto monochrome_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/monochrome.frag").string()).contents;
+    auto monochrome_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/monochrome.frag").string()).contents;
     auto monochrome_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, monochrome_shader_source);
-    auto gauss_x_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/gauss_x.frag").string()).contents;
-    auto gauss_x_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, gauss_x_source);
-    auto gauss_y_source = glsp::preprocess_file((vgl::file::shaders_path / "filters/gauss_y.frag").string()).contents;
-    auto gauss_y_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, gauss_y_source);
-    auto laplacian_source = glsp::preprocess_file((vgl::file::shaders_path / "blob_detection/laplacian_normalized.frag").string()).contents;
+    auto gauss_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/gauss.frag").string()).contents;
+    auto gauss_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, gauss_source);
+    auto laplacian_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/blob_detection/laplacian_normalized.frag").string()).contents;
     auto laplacian_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, laplacian_source);
 
     const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});
-    const auto gauss_x = vgl::gl::create_program({vertex_shader, gauss_x_shader});
-    const auto gauss_y = vgl::gl::create_program({vertex_shader, gauss_y_shader});
+    const auto gauss = vgl::gl::create_program({vertex_shader, gauss_shader});
     const auto laplacian = vgl::gl::create_program({vertex_shader, laplacian_shader});
 
     auto tex_id = vgl::gl::create_texture(GL_TEXTURE_2D);
@@ -88,8 +85,7 @@ int main() {
         gui.start_frame();
         if (ImGui::Begin("Kernel size")) {
             ImGui::SliderInt("Kernel Size", &kernel_size, 0, 100);
-            glProgramUniform1i(gauss_x, 0, kernel_size);
-            glProgramUniform1i(gauss_y, 0, kernel_size);
+            glProgramUniform1i(gauss, 0, kernel_size);
             glProgramUniform1i(laplacian, 0, kernel_size);
         }
         ImGui::End();
@@ -100,12 +96,13 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBindVertexArray(screen_vao);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        glUseProgram(gauss_x);
+        glUseProgram(gauss);
+        vgl::gl::update_uniform(gauss, 1, 0);
         glBindTextureUnit(0, gauss_y_tex);
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_gauss_x);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        glUseProgram(gauss_y);
+        vgl::gl::update_uniform(gauss, 1, 1);
         glBindTextureUnit(0, gauss_x_tex);
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_gauss_y);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
