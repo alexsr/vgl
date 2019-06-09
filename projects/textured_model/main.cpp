@@ -1,7 +1,4 @@
 #include "vgl/control/window.hpp"
-#include "imgui/imgui.h"
-#include "imgui/examples/imgui_impl_glfw.h"
-#include "imgui/examples/imgui_impl_opengl3.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "vgl/rendering/scene.hpp"
@@ -138,7 +135,7 @@ int main() {
     cam.rotation_speed = 3.0f;
     cam.projection = glm::perspective(glm::radians(60.0f), 16.0f / 9.0f, 0.001f, 100.0f);
 
-    auto cam_ssbo = vgl::gl::create_buffer(cam.get_cam_data(), GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
+    auto cam_ssbo = vgl::gl::create_buffer(cam.get_cam_data(), GL_MAP_WRITE_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, cam_ssbo);
 
     vgl::gl::glprogram phong, depth_prepass, lights_debug, aabb_debug, screen, cubemap, cubemap_equirect;

@@ -233,10 +233,6 @@ void vgl::ui::Gui::render() {
     GLenum last_active_texture;
     glGetIntegerv(GL_ACTIVE_TEXTURE, reinterpret_cast<GLint*>(&last_active_texture));
     glActiveTexture(GL_TEXTURE0);
-    GLint ssbo_last_binding;
-    glGetIntegeri_v(GL_SHADER_STORAGE_BUFFER_BINDING, 0, &ssbo_last_binding);
-    GLint draw_indirect_binding;
-    glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &draw_indirect_binding);
     GLint last_polygon_mode[2];
     glGetIntegerv(GL_POLYGON_MODE, last_polygon_mode);
     GLint last_scissor_box[4];
@@ -329,8 +325,6 @@ void vgl::ui::Gui::render() {
     }
 
     // Restore modified GL state
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo_last_binding);
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_indirect_binding);
     glBlendEquationSeparate(last_blend_equation_rgb, last_blend_equation_alpha);
     glBlendFuncSeparate(last_blend_src_rgb, last_blend_dst_rgb, last_blend_src_alpha, last_blend_dst_alpha);
     if (last_enable_blend) glEnable(GL_BLEND);
