@@ -1,0 +1,35 @@
+#version 460
+
+layout (local_size_x = 64) in;
+
+#include "binding.glsl"
+#include "../include/cam.glsl"
+#include "particle.glsl"
+
+layout (std430, binding = CAM_BINDING) buffer cam_buffer {
+    Camera cam;
+};
+
+layout (std430, binding = PARTICLE_BINDING) buffer particle_ssbo {
+    Particle particles[];
+};
+
+layout (location = 0) uniform float dt;
+
+void main() {
+    uint id = gl_GlobalInvocationID.x;
+    if (id >= particles.length()) {
+        return;
+    }
+    if (particles[id].lifetime > 0.0) {
+        particles[id].pos += particles[id].vel * dt;
+        // particles[id].vel.xyz += -dt * particles[id].pos.xyz * 2.0 * clamp(particles[id].lifetime, 0, 1);
+        // particles[id].vel.y += particles[id].accel.y * dt * 0.9;
+        particles[id].accel.y -= dt * particles[id].accel.y;
+        // particles[id].accel.xyz *= mix(0.0, 1.0, particles[id].lifetime / 2.0);
+        // particles[id].vel.xz += particles[id].accel.xz * dt;
+
+        particles[id].pos.w = 1.0;
+        particles[id].lifetime -= pow(dt, 2.0f);// * particles[id].lifetime;
+    }
+}
