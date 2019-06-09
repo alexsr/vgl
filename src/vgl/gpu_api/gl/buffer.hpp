@@ -37,14 +37,23 @@ namespace vgl::gl
     }
 
     template <typename T>
-    glbuffer create_buffer(T data, GLenum bitfield = 0) {
-        glbuffer handle = create_buffer();
-        set_buffer_storage(handle, data, bitfield);
-        return handle;
+    std::enable_if_t<is_container_v<T>> get_full_buffer_data(const glbuffer& buffer, T& data) {
+        const auto buffer_ptr = glMapNamedBufferRange(buffer, 0, std::size(data) * sizeof_value_type(data),
+            GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
+        std::memcpy(data.data(), buffer_ptr, std::size(data) * sizeof_value_type(data));
+        glUnmapNamedBuffer(buffer);
     }
 
     template <typename T>
-    glbuffer create_buffer_fixed_size(T data, size_t size, GLenum bitfield = 0) {
+    std::enable_if_t<!is_container_v<T>> get_full_buffer_data(const glbuffer& buffer, T& data) {
+        const auto buffer_ptr = glMapNamedBufferRange(buffer, 0, sizeof(T),
+            GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
+        std::memcpy(&data, buffer_ptr, sizeof(T));
+        glUnmapNamedBuffer(buffer);
+    }
+
+    template <typename T>
+    glbuffer create_buffer(T data, GLenum bitfield = 0) {
         glbuffer handle = create_buffer();
         set_buffer_storage(handle, data, bitfield);
         return handle;
@@ -54,5 +63,11 @@ namespace vgl::gl
         GLuint buffer = 0;
         glCreateBuffers(1, &buffer);
         return buffer;
+    }
+
+    inline glbuffer create_buffer_fixed_size(size_t size, GLenum bitfield = 0) {
+        glbuffer handle = create_buffer();
+        set_empty_buffer_storage(handle, size, bitfield);
+        return handle;
     }
 }
