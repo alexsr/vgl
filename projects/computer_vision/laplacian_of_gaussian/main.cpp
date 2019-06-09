@@ -22,13 +22,13 @@ int main() {
     glViewport(0, 0, w_res.x, w_res.y);
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-    auto vertex_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "minimal/texture.vert").string()).contents;
+    auto vertex_shader_source = glsp::preprocess_file(vgl::file::shaders_path / "minimal/texture.vert").contents;
     auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, vertex_shader_source);
-    auto monochrome_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/monochrome.frag").string()).contents;
+    auto monochrome_shader_source = glsp::preprocess_file(vgl::file::shaders_path / "cv/filters/monochrome.frag").contents;
     auto monochrome_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, monochrome_shader_source);
-    auto gauss_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/gauss.frag").string()).contents;
+    auto gauss_source = glsp::preprocess_file(vgl::file::shaders_path / "cv/filters/gauss.frag").contents;
     auto gauss_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, gauss_source);
-    auto laplacian_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/blob_detection/laplacian_normalized.frag").string()).contents;
+    auto laplacian_source = glsp::preprocess_file(vgl::file::shaders_path / "cv/blob_detection/laplacian_normalized.frag").contents;
     auto laplacian_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, laplacian_source);
 
     const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});

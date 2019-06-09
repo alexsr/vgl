@@ -132,8 +132,8 @@ int main() {
         auto aabb_debug_gs_source_ftr = vgl::file::load_string_file_async(vgl::file::shaders_path / "debug/bb.geom");
         auto aabb_debug_fs_source_ftr = vgl::file::load_string_file_async(vgl::file::shaders_path / "debug/red.frag");
 
-        auto phong_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "shading/shading.vert").string()).contents;
-        auto phong_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "shading/phong.frag").string()).contents;
+        auto phong_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/shading.vert").contents;
+        auto phong_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/phong.frag").contents;
         auto phong_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, phong_vs_source);
         auto phong_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, phong_fs_source);
         phong = vgl::gl::create_program({ phong_vs, phong_fs });

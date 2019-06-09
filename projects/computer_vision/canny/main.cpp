@@ -23,27 +23,27 @@ int main() {
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-    auto vertex_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "minimal/texture.vert").string()).contents;
-    auto gauss_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/gauss.frag").string()).contents;
+    auto vertex_shader_source = glsp::preprocess_file(vgl::file::shaders_path / "minimal/texture.vert").contents;
+    auto gauss_source = glsp::preprocess_file(vgl::file::shaders_path / "cv/filters/gauss.frag").contents;
     auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, vertex_shader_source);
     auto gauss_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, gauss_source);
     const auto gauss = vgl::gl::create_program({ vertex_shader, gauss_shader });
 
-    auto monochrome_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/monochrome.frag").string()).contents;
+    auto monochrome_source = glsp::preprocess_file(vgl::file::shaders_path / "cv/filters/monochrome.frag").contents;
     auto monochrome_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, monochrome_source);
 
-    auto sobel_first_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/sobel_xy.frag").string()).contents;
+    auto sobel_first_source = glsp::preprocess_file(vgl::file::shaders_path / "cv/filters/sobel_xy.frag").contents;
     auto sobel_first_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, sobel_first_source);
 
-    auto sobel_second_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/sobel_xy_angle.frag").string()).contents;
+    auto sobel_second_source = glsp::preprocess_file(vgl::file::shaders_path / "cv/filters/sobel_xy_angle.frag").contents;
     auto sobel_second_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, sobel_second_source);
 
-    auto non_max_suppression_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "cv/edge_detection/canny_non_max_suppression.frag").string()).contents;
+    auto non_max_suppression_source = glsp::preprocess_file(vgl::file::shaders_path
+        / "cv/edge_detection/canny_non_max_suppression.frag").contents;
     auto non_max_suppression_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, non_max_suppression_source);
 
-    auto double_threshold_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "cv/edge_detection/canny_double_threshold.frag").string()).contents;
+    auto double_threshold_source = glsp::preprocess_file(vgl::file::shaders_path
+        / "cv/edge_detection/canny_double_threshold.frag").contents;
     auto double_threshold_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, double_threshold_source);
 
     const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});

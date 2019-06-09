@@ -145,50 +145,50 @@ int main() {
         aabb_debug, screen, cubemap, cubemap_equirect, frustum_culling;
 
     auto reload_shaders = [&]() {
-        auto frustum_culling_source = glsp::preprocess_file((vgl::file::shaders_path / "util/frustum_culling.comp").string()).contents;
+        auto frustum_culling_source = glsp::preprocess_file(vgl::file::shaders_path / "util/frustum_culling.comp").contents;
         auto frustum_culling_cs = vgl::gl::create_shader(GL_COMPUTE_SHADER, frustum_culling_source);
         frustum_culling = vgl::gl::create_program({ frustum_culling_cs });
 
-        auto screen_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "util/screen.vert").string()).contents;
-        auto screen_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "util/screen.frag").string()).contents;
+        auto screen_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/screen.vert").contents;
+        auto screen_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/screen.frag").contents;
         auto screen_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, screen_vs_source);
         auto screen_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, screen_fs_source);
         screen = vgl::gl::create_program({ screen_vs, screen_fs });
 
-        auto deferred_prepass_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "shading/shading.vert").string()).contents;
-        auto deferred_prepass_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "shading/deferred_geometry.frag").string()).contents;
+        auto deferred_prepass_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/shading.vert").contents;
+        auto deferred_prepass_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/deferred_geometry.frag").contents;
         auto deferred_prepass_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, deferred_prepass_vs_source);
         auto deferred_prepass_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, deferred_prepass_fs_source);
         deferred_prepass = vgl::gl::create_program({ deferred_prepass_vs, deferred_prepass_fs });
 
-        auto deferred_lighting_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "shading/deferred_lighting.frag").string()).contents;
+        auto deferred_lighting_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/deferred_lighting.frag").contents;
         auto deferred_lighting_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, deferred_lighting_fs_source);
         deferred_lighting = vgl::gl::create_program({ screen_vs, deferred_lighting_fs });
 
-        auto cubemap_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "util/cubemap.vert").string()).contents;
-        auto cubemap_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "util/cubemap.frag").string()).contents;
-        auto cubemap_equirect_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "util/cubemap_equirectangular.frag").string()).contents;
+        auto cubemap_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/cubemap.vert").contents;
+        auto cubemap_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/cubemap.frag").contents;
+        auto cubemap_equirect_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/cubemap_equirectangular.frag").contents;
         auto cubemap_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, cubemap_vs_source);
         auto cubemap_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, cubemap_fs_source);
         auto cubemap_equirect_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, cubemap_equirect_fs_source);
         cubemap = vgl::gl::create_program({ cubemap_vs, cubemap_fs });
         cubemap_equirect = vgl::gl::create_program({ cubemap_vs, cubemap_equirect_fs });
 
-        auto depth_prepass_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "shading/depth_prepass.vert").string()).contents;
-        auto depth_prepass_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "shading/depth_prepass.frag").string()).contents;
+        auto depth_prepass_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/depth_prepass.vert").contents;
+        auto depth_prepass_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/depth_prepass.frag").contents;
         auto depth_prepass_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, depth_prepass_vs_source);
         auto depth_prepass_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, depth_prepass_fs_source);
         depth_prepass = vgl::gl::create_program({ depth_prepass_vs, depth_prepass_fs });
 
-        auto lights_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "debug/lights.vert").string()).contents;
-        auto lights_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "debug/lights.frag").string()).contents;
+        auto lights_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "debug/lights.vert").contents;
+        auto lights_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "debug/lights.frag").contents;
         auto lights_debug_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, lights_vs_source);
         auto lights_debug_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, lights_fs_source);
         lights_debug = vgl::gl::create_program({ lights_debug_vs, lights_debug_fs });
 
-        auto aabb_debug_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "debug/bb.vert").string()).contents;
-        auto aabb_debug_gs_source = glsp::preprocess_file((vgl::file::shaders_path / "debug/bb.geom").string()).contents;
-        auto aabb_debug_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "debug/red.frag").string()).contents;
+        auto aabb_debug_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "debug/bb.vert").contents;
+        auto aabb_debug_gs_source = glsp::preprocess_file(vgl::file::shaders_path / "debug/bb.geom").contents;
+        auto aabb_debug_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "debug/red.frag").contents;
         auto aabb_debug_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, aabb_debug_vs_source);
         auto aabb_debug_gs = vgl::gl::create_shader(GL_GEOMETRY_SHADER, aabb_debug_gs_source);
         auto aabb_debug_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, aabb_debug_fs_source);

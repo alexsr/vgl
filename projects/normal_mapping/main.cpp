@@ -67,25 +67,23 @@ int main() {
         auto depth_prepass_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, depth_prepass_fs_source);
         depth_prepass = vgl::gl::create_program({ depth_prepass_vs, depth_prepass_fs });*/
 
-        auto normal_mapping_vs_source = glsp::preprocess_file((vgl::file::shaders_path
-            / "shading/normal_mapping.vert").string()).contents;
-        auto normal_mapping_fs_source = glsp::preprocess_file((vgl::file::shaders_path
-            / "shading/normal_cubemap.frag").string()).contents;
+        auto normal_mapping_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/normal_mapping.vert").contents;
+        auto normal_mapping_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/normal_cubemap.frag").contents;
         auto normal_mapping_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, normal_mapping_vs_source);
         auto normal_mapping_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, normal_mapping_fs_source);
         normal_mapping = vgl::gl::create_program({ normal_mapping_vs, normal_mapping_fs });
 
-        auto cubemap_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "util/cubemap.vert").string()).contents;
-        auto cubemap_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "util/cubemap.frag").string()).contents;
-        auto cubemap_equirect_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "util/cubemap_equirectangular.frag").string()).contents;
+        auto cubemap_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/cubemap.vert").contents;
+        auto cubemap_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/cubemap.frag").contents;
+        auto cubemap_equirect_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/cubemap_equirectangular.frag").contents;
         auto cubemap_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, cubemap_vs_source);
         auto cubemap_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, cubemap_fs_source);
         auto cubemap_equirect_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, cubemap_equirect_fs_source);
         cubemap = vgl::gl::create_program({ cubemap_vs, cubemap_fs });
         cubemap_equirect = vgl::gl::create_program({ cubemap_vs, cubemap_equirect_fs });
 
-        auto lights_vs_source = glsp::preprocess_file((vgl::file::shaders_path / "debug/lights.vert").string()).contents;
-        auto lights_fs_source = glsp::preprocess_file((vgl::file::shaders_path / "debug/lights.frag").string()).contents;
+        auto lights_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "debug/lights.vert").contents;
+        auto lights_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "debug/lights.frag").contents;
         auto lights_debug_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, lights_vs_source);
         auto lights_debug_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, lights_fs_source);
         lights_debug = vgl::gl::create_program({ lights_debug_vs, lights_debug_fs });

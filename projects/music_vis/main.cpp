@@ -76,14 +76,10 @@ int main() {
     vgl::gl::glprogram render_particles;
 
     auto reload_shader = [&]() {
-        auto vs_source = glsp::preprocess_file((vgl::file::shaders_path
-            / "music_vis/render_particles.vert").string()).contents;
-        auto fs_source = glsp::preprocess_file((vgl::file::shaders_path
-            / "music_vis/render_particles.frag").string()).contents;
-        auto comp_source = glsp::preprocess_file((vgl::file::shaders_path
-            / "music_vis/move_particles.comp").string()).contents;
-        auto spawn_src = glsp::preprocess_file((vgl::file::shaders_path
-            / "music_vis/spawn_particles.comp").string()).contents;
+        auto vs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/render_particles.vert").contents;
+        auto fs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/render_particles.frag").contents;
+        auto comp_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/move_particles.comp").contents;
+        auto spawn_src = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/spawn_particles.comp").contents;
         auto particles_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, vs_source);
         auto particles_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, fs_source);
         render_particles = vgl::gl::create_program({ particles_vs, particles_fs });

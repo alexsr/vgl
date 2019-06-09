@@ -22,15 +22,15 @@ int main() {
     glViewport(0, 0, w_res.x, w_res.y);
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-    auto vertex_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "minimal/texture.vert").string()).contents;
+    auto vertex_shader_source = glsp::preprocess_file(vgl::file::shaders_path / "minimal/texture.vert").contents;
     auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, vertex_shader_source);
-    auto monochrome_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/monochrome.frag").string()).contents;
+    auto monochrome_source = glsp::preprocess_file(vgl::file::shaders_path / "cv/filters/monochrome.frag").contents;
     auto monochrome_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, monochrome_source);
-    auto dog_first_pass_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "cv/blob_detection/dog_first_pass.frag").string()).contents;
+    auto dog_first_pass_source = glsp::preprocess_file(vgl::file::shaders_path
+        / "cv/blob_detection/dog_first_pass.frag").contents;
     auto dog_first_pass_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, dog_first_pass_source);
-    auto dog_second_pass_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "cv/blob_detection/dog_second_pass.frag").string()).contents;
+    auto dog_second_pass_source = glsp::preprocess_file(vgl::file::shaders_path
+        / "cv/blob_detection/dog_second_pass.frag").contents;
     auto dog_second_pass_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, dog_second_pass_source);
 
     const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});

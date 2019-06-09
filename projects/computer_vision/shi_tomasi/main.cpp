@@ -22,18 +22,16 @@ int main() {
     glViewport(0, 0, w_res.x, w_res.y);
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-    auto vertex_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "minimal/texture.vert").string()).contents;
+    auto vertex_shader_source = glsp::preprocess_file(vgl::file::shaders_path / "minimal/texture.vert").contents;
     auto vertex_shader = vgl::gl::create_shader(GL_VERTEX_SHADER, vertex_shader_source);
-    auto monochrome_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "cv/filters/monochrome.frag").string()).contents;
+    auto monochrome_shader_source = glsp::preprocess_file(vgl::file::shaders_path / "cv/filters/monochrome.frag").contents;
     auto monochrome_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, monochrome_shader_source);
-    auto sobel_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "cv/filters/sobel_xy.frag").string()).contents;
+    auto sobel_source = glsp::preprocess_file(vgl::file::shaders_path / "cv/filters/sobel_xy.frag").contents;
     auto sobel_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, sobel_source);
-    auto shi_tomasi_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "cv/corner_detection/shi_tomasi.frag").string()).contents;
+    auto shi_tomasi_source = glsp::preprocess_file(vgl::file::shaders_path / "cv/corner_detection/shi_tomasi.frag").contents;
     auto shi_tomasi_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, shi_tomasi_source);
-    auto non_max_suppression_source = glsp::preprocess_file((vgl::file::shaders_path
-        / "cv/corner_detection/non_max_suppression_overlay.frag").string()).contents;
+    auto non_max_suppression_source = glsp::preprocess_file(vgl::file::shaders_path
+        / "cv/corner_detection/non_max_suppression_overlay.frag").contents;
     auto non_max_suppression_shader = vgl::gl::create_shader(GL_FRAGMENT_SHADER, non_max_suppression_source);
 
     const auto monochrome = vgl::gl::create_program({vertex_shader, monochrome_shader});

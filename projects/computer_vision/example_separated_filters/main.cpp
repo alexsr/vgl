@@ -22,7 +22,7 @@ int main() {
     glViewport(0, 0, w_res.x, w_res.y);
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-    auto vertex_shader_source = glsp::preprocess_file((vgl::file::shaders_path / "minimal/texture.vert").string()).contents;
+    auto vertex_shader_source = glsp::preprocess_file(vgl::file::shaders_path / "minimal/texture.vert").contents;
     auto first_pass_shader_source = glsp::preprocess_file((vgl::file::shaders_path
         / "cv/filters/separated_first_pass.frag").string()).contents;
     auto second_pass_shader_source = glsp::preprocess_file((vgl::file::shaders_path

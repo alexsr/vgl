@@ -8,11 +8,6 @@
 #include <mutex>
 
 namespace impl {
-    /* This routine will be called by the PortAudio engine when audio is needed.
-    ** It may be called at interrupt level on some machines so don't do anything
-    ** that could mess up the system like calling malloc() or free().
-    */
-
     std::mutex audio_data_mutex;
     static int record_callback(const void* inputBuffer, void*, unsigned long framesPerBuffer,
             const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags, void* userData) {
