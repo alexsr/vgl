@@ -181,7 +181,8 @@ int main() {
         auto aabb_debug_gs = vgl::gl::create_shader(GL_GEOMETRY_SHADER, aabb_debug_gs_source);
         auto aabb_debug_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, aabb_debug_fs_source);
         aabb_debug = vgl::gl::create_program({ aabb_debug_vs, aabb_debug_gs, aabb_debug_fs });
-    }();
+    };
+    reload_shaders();
 
     G_buffer g_buffer_one{};
     g_buffer_one.init(config.fb_res);

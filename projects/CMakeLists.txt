@@ -24,5 +24,6 @@ target_link_libraries(cubemap_generator PUBLIC stb::stb)
 
 add_executable(music_vis music_vis/main.cpp music_vis/audio_input.hpp)
 target_link_libraries(music_vis PUBLIC vgl portaudio)
+target_include_directories(music_vis PUBLIC ${EXTERNAL_PATH}/portaudio/include)
 
 add_subdirectory(computer_vision)
