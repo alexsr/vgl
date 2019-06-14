@@ -10,21 +10,33 @@ bool vgl::file::is_file(const char* path) {
     auto temp = std::filesystem::path(path);
     return exists(temp) && !is_directory(temp);
 }
-
-std::optional<std::filesystem::path> vgl::file::open_file_dialog(std::filesystem::path default_path,
+std::optional<std::filesystem::path> vgl::file::save_file_dialog(const std::filesystem::path& default_path,
     const std::string& filter) {
     nfdchar_t* res = nullptr;
-    auto status = NFD_OpenDialog(filter.c_str(), default_path.make_preferred().string().c_str(), &res);
+    auto path_copy = default_path;
+    auto status = NFD_SaveDialog(filter.c_str(), path_copy.make_preferred().string().c_str(), &res);
     if (status == NFD_CANCEL || status == NFD_ERROR) {
         return std::nullopt;
     }
     return res;
 }
 
-std::optional<std::vector<std::filesystem::path>> vgl::file::open_multiple_files_dialog(std::filesystem::path default_path,
+std::optional<std::filesystem::path> vgl::file::open_file_dialog(const std::filesystem::path& default_path,
+    const std::string& filter) {
+    nfdchar_t* res = nullptr;
+    auto path_copy = default_path;
+    auto status = NFD_OpenDialog(filter.c_str(), path_copy.make_preferred().string().c_str(), &res);
+    if (status == NFD_CANCEL || status == NFD_ERROR) {
+        return std::nullopt;
+    }
+    return res;
+}
+
+std::optional<std::vector<std::filesystem::path>> vgl::file::open_multiple_files_dialog(const std::filesystem::path& default_path,
     const std::string& filter) {
     nfdpathset_t res;
-    auto status = NFD_OpenDialogMultiple(filter.c_str(), default_path.make_preferred().string().c_str(), &res);
+    auto path_copy = default_path;
+    auto status = NFD_OpenDialogMultiple(filter.c_str(), path_copy.make_preferred().string().c_str(), &res);
     if (status == NFD_CANCEL || status == NFD_ERROR) {
         return std::nullopt;
     }
