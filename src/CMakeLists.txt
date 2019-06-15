@@ -28,5 +28,5 @@ target_compile_definitions(vgl
         GLM_ENABLE_EXPERIMENTAL)
 
 target_compile_features(vgl PUBLIC cxx_std_17)
-target_link_libraries(vgl PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp stb::stb
+target_link_libraries(vgl PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp stb::stb OpenMP::OpenMP_CXX
 					  imgui::imgui glm::glm nativefiledialog glsp::glsp iconfont::iconfont)

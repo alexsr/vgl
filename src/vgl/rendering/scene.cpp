@@ -150,16 +150,17 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
     }
     scene.indices.resize(start_indices.back() * 3);
     scene.vertices.resize(start_vertices.back());
+    scene.draw_cmds.resize(ai_scene->mNumMeshes);
 #pragma omp parallel for
     for (unsigned int m = 0; m < ai_scene->mNumMeshes; m++) {
         auto ai_mesh = ai_scene->mMeshes[m];
-        scene.draw_cmds.push_back(gl::Indirect_elements_command{
+        scene.draw_cmds.at(m) = gl::Indirect_elements_command{
             static_cast<unsigned int>(ai_mesh->mNumFaces * 3),
             1,
             static_cast<unsigned int>(start_indices.at(m) * 3),
             static_cast<unsigned int>(start_vertices.at(m)),
             0
-            });
+            };
         for (int i = 0; i < static_cast<int>(ai_mesh->mNumFaces); i++) {
             auto scene_i = start_indices.at(m) + i;
             if (ai_mesh->mFaces->mNumIndices != 3) {
