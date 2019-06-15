@@ -10,6 +10,7 @@ add_library(vgl
 	vgl/file/stb_impl.cpp
 	vgl/file/file.cpp
 	vgl/file/image_file.cpp
+	vgl/file/image.cpp
 	vgl/gpu_api/gl/handle.cpp
 	vgl/rendering/camera.cpp
 	vgl/rendering/scene.cpp

@@ -266,16 +266,17 @@ int main() {
                     glFinish();
                     scene = vgl::load_scene(file.value(), true);
                     textures.resize(scene.textures.size());
-                    auto tex_data = vgl::file::load_images(scene.textures);
+                    auto tex_data = vgl::file::load_images(scene.textures, true);
                     std::vector<GLuint64> tex_handles(scene.textures.size());
                     for (auto i = 0; i < scene.textures.size(); ++i) {
                         textures.at(i) = vgl::gl::create_texture(GL_TEXTURE_2D);
+                        auto tex_format = vgl::gl::derive_internal_format(tex_data.at(i));
+                        auto desc = vgl::img::get_image_desc(tex_data.at(i));
                         glTextureParameteri(textures.at(i), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                         glTextureParameteri(textures.at(i), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                         glTextureParameteri(textures.at(i), GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
                         glTextureParameteri(textures.at(i), GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-                        glTextureStorage2D(textures.at(i), 1, tex_data.at(i).desc.internal_format,
-                            tex_data.at(i).desc.image_size.x, tex_data.at(i).desc.image_size.y);
+                        glTextureStorage2D(textures.at(i), 1, tex_format, desc.width, desc.height);
                         vgl::gl::set_texture_data_2d(textures.at(i), tex_data.at(i));
                         tex_handles.at(i) = vgl::gl::get_texture_handle(textures.at(i));
                     }
@@ -342,7 +343,9 @@ int main() {
                             if (all_faces_present) {
                                 cubemap_texture = vgl::gl::create_texture(GL_TEXTURE_CUBE_MAP);
                                 auto desc = vgl::file::retrieve_image_desc(face_textures.at(0).value());
-                                glTextureStorage2D(cubemap_texture, 6, desc.internal_format, desc.image_size.x, desc.image_size.y);
+                                auto image_type = vgl::file::retrieve_image_type(face_textures.at(0).value());
+                                auto internal_format = vgl::gl::derive_internal_format(desc, image_type);
+                                glTextureStorage2D(cubemap_texture, 6, internal_format, desc.width, desc.height);
                                 for (size_t i = 0; i < face_textures.size(); ++i) {
                                     const auto f = face_textures.at(i).value();
                                     auto filename = f.file_path.filename().stem().string();
@@ -355,7 +358,7 @@ int main() {
                                 glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
                                 glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                                 glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-                                config.cm_conf.hdr = desc.type == GL_FLOAT;
+                                config.cm_conf.hdr = image_type == vgl::image_type::hdr;
                                 vgl::gl::update_uniform(cubemap, 0, vgl::gl::get_texture_handle(cubemap_texture));
                                 cubemap_config_ssbo = vgl::gl::create_buffer(config.cm_conf, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
                                 glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, cubemap_config_ssbo);
@@ -369,16 +372,18 @@ int main() {
                     if (file) {
                         vgl::Image_info tex_info{ file.value(), 4 };
                         auto tex_data = vgl::file::load_image(tex_info);
+                        auto tex_format = vgl::gl::derive_internal_format(tex_data);
+                        auto desc = vgl::img::get_image_desc(tex_data);
+                        auto image_type = vgl::img::get_image_type(tex_data);
                         cubemap_texture = vgl::gl::create_texture(GL_TEXTURE_2D);
-                        glTextureStorage2D(cubemap_texture, 1, tex_data.desc.internal_format,
-                            tex_data.desc.image_size.x, tex_data.desc.image_size.y);
+                        glTextureStorage2D(cubemap_texture, 1, tex_format, desc.width, desc.height);
                         vgl::gl::set_texture_data_2d(cubemap_texture, tex_data);
                         glTextureParameteri(cubemap_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                         glTextureParameteri(cubemap_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                         glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
                         glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                         glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-                        config.cm_conf.hdr = tex_data.desc.type == GL_FLOAT;
+                        config.cm_conf.hdr = image_type == vgl::image_type::hdr;
                         vgl::gl::update_uniform(cubemap_equirect, 0, vgl::gl::get_texture_handle(cubemap_texture));
                         cubemap_config_ssbo = vgl::gl::create_buffer(config.cm_conf, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
                         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, cubemap_config_ssbo);
