@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <variant>
+#include <type_traits>
 
 namespace vgl {
     enum class image_type {
@@ -25,12 +26,12 @@ namespace vgl {
     }
 
     struct Image_desc {
-        int width;
-        int height;
-        int channels;
+        int width = 0;
+        int height = 0;
+        int channels = 0;
     };
 
-    template <typename T>
+    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
     struct Image {
         Image() = default;
         explicit Image(Image_desc d) noexcept : desc(d) {
@@ -42,7 +43,7 @@ namespace vgl {
         }
         using value_type = T;
         std::vector<T> data;
-        Image_desc desc;
+        Image_desc desc{};
         constexpr image_type get_image_type() const {
             return convert_to_img_type<T>();
         }
