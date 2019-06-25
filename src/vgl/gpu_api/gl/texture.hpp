@@ -143,6 +143,14 @@ namespace vgl::gl {
     }
 
     template <typename T>
+    bool set_texture_data_2d(const gltexture& texture, const std::vector<T>& data,
+        int width, int height, GLenum format, int level = 0) {
+        glTextureSubImage2D(texture, level, 0, 0, width, height,
+            format, glify_type<T>(), data.data());
+        return true;
+    }
+
+    template <typename T>
     bool set_texture_data_2d(const gltexture& texture, const Image<T>& img, int level = 0) {
         auto format = glify_channels(img.desc.channels);
         glTextureSubImage2D(texture, level, 0, 0, img.desc.width, img.desc.height,
