@@ -25,12 +25,11 @@ layout (std430, binding = WATER_SYSTEM_CONFIG_BINDING) readonly buffer config_ss
 };
 
 layout (location = 0) out vec4 _color;
-// layout (location = 1) out vec3 _ppos;
 
 void main() {
     int id = gl_InstanceID;
     // _ppos = normalize(position);
     _color = vec4(particles[id].color, particles[id].lifetime);
     gl_Position = cam.proj * cam.view * vec4(particles[id].pos.xyz, 1.0);
-    gl_PointSize = 2.0 / gl_Position.w;
+    gl_PointSize = config.point_size / gl_Position.w;
 }

@@ -83,7 +83,7 @@ namespace vgl::gl {
 
     template <typename T>
     void update_uniform(const GLuint program, GLint location, const T& value) {
-        log_error() << "Uniform type " << typeid(T).name() << "does not exist.\n";
+        std::cout << "Uniform type " << typeid(T).name() << "does not exist.\n";
     }
 
     template <>

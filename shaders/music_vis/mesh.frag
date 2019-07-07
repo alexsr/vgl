@@ -7,10 +7,11 @@ layout (early_fragment_tests) in;
 
 layout (location = 0) in vec4 _pos;
 layout (location = 1) in vec2 _uv;
+layout (location = 2) in float _height;
 
 layout (location = 0) out vec4 _color;
 
-layout (location = 1) uniform float offset;
+layout (location = 3) uniform float offset;
 
 layout (std430, binding = VISUALIZATION_SETTINGS_BINDING) buffer vis_settings {
     vec2 mesh_size;
@@ -56,9 +57,15 @@ void main() {
     float fog_const = 1.0;
     float fog_exp = _pos.z * fog_const;
     float fog_value = exp(-fog_exp * fog_exp);
-    vec4 fog_color = vec4(PURPLE.xyz, 0.8);//vec4(0.749, 0.067, 0.706, 0.8f);
-    _color = (1.0 - fog_value) * fog_color + fog_value * ground_color;
-    _color += fog_value * mix(vec4(0.0, 0.0, 0.0, 0.0), CYAN * 1.7, 0.6 - smoothstep(0.0, GRID_LINE_SIZE / GRID_SIZE, gln));
+    vec4 fog_color = vec4(PURPLE.xyz, 0.5);//vec4(0.749, 0.067, 0.706, 0.8f);
+    if (_uv.x > 0.4725 && _uv.x < 0.5275) {
+        ground_color = mix(vec4(0.114, 0.635, 0.847, 1.0), vec4(1), (_height + 0.004) / 0.005);
+        _color = (1.0 - fog_value) * fog_color + fog_value * ground_color;
+    }
+    else {
+        _color = (1.0 - fog_value) * fog_color + fog_value * ground_color;
+        _color += fog_value * mix(vec4(0.0, 0.0, 0.0, 0.0), CYAN * 1.7, 0.6 - smoothstep(0.0, GRID_LINE_SIZE / GRID_SIZE, gln));
+    }
     // _color = normalize(_color);
     
     // _color = mix(ground_color, vec4(0.212, 0.804, 0.769, 1.0), gridTexture(_uv + vec2(0, offset), 1./GRID_SIZE));

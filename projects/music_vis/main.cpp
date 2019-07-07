@@ -15,6 +15,7 @@
 #include "vgl/rendering/scene.hpp"
 #include <random>
 #include "audio_input.hpp"
+#include "processing.hpp"
 #include <complex>
 #include <algorithm>
 #include <execution>
@@ -25,172 +26,6 @@
 extern "C" {
     _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001;
 }
-
-float gen_random_float(const float lower, const float upper) {
-    std::random_device rd;
-    std::mt19937 eng(rd());
-    const std::uniform_real_distribution<float> uni(lower, upper);
-    return uni(eng);
-}
-
-glm::vec4 gen_random_vec4(const float lower = 0.0f, const float upper = 1.0f, const float w = 1.0f) {
-    return glm::vec4(gen_random_float(lower, upper), gen_random_float(lower, upper), gen_random_float(lower, upper), w);
-}
-
-float hann_function(float x, float bound) {
-    auto res = std::sin(glm::pi<float>() * x / (bound));
-    return res * res;
-}
-//
-//std::vector<float> gen_log_scale_freqs(float lower, const float upper, const int steps) {
-//    float base = 2.0f;
-//    float start = std::log(lower) / std::log(base);
-//    float end = std::log(upper) / std::log(base);
-//    float step_size = (end - start) / static_cast<float>(steps);
-//    std::vector<float> freqs(steps);
-//    float delta = 0.0f;
-//    for (auto& f : freqs) {
-//        f = std::pow(base, start + delta);
-//        delta += step_size;
-//    }
-//    return freqs;
-//}
-
-struct Exp_moving_average {
-    Exp_moving_average(float N) : _alpha(2.0f / (N + 1)), _one_minus_alpha(1.0f - _alpha) {}
-    void add(float x) {
-        _sum = x + _one_minus_alpha * _sum;
-        _count = 1.0f + _one_minus_alpha * _count;
-        ema = _sum / _count;
-    }
-    /*float ema() {
-        return _sum / _count;
-    }*/
-    float ema = 0.0f;
-private:
-    float _alpha;
-    float _one_minus_alpha;
-    float _sum = 0.0f;
-    float _count = 1.0f;
-};
-
-
-struct Exp_moving_average_buffer {
-    Exp_moving_average_buffer(float N, size_t size) : _alpha(2.0f / (N + 1)), _one_minus_alpha(1.0f - _alpha) {
-        _sum = std::vector<float>(size);
-        ema = std::vector<float>(size);
-    }
-
-    void add(const std::vector<float>& x) {
-        //if (x.size() == _sum.size()) {
-        _count = 1.0f + _one_minus_alpha * _count;
-        for (int i = 0; i < _sum.size(); ++i) {
-            _sum.at(i) = x.at(i) + _one_minus_alpha * _sum.at(i);
-            ema.at(i) = _sum.at(i) / _count;
-        }
-        //}
-    }
-
-    void reset() {
-        std::fill(_sum.begin(), _sum.end(), 0.0f);
-        _count = 1.0f;
-    }
-    std::vector<float> ema;
-
-private:
-    float _alpha;
-    float _one_minus_alpha;
-    std::vector<float> _sum;
-    float _count = 1.0f;
-};
-
-// takes wavebuffer as input where output is 2 * size of wavebuffer due to complex numbers
-// the wavebuffer is interleaved into output before function call
-void ct_fft(const float* input, std::complex<float>* output, int n, int stride) {
-    if (n == 1) {
-        output[0] = std::complex<float>(input[0]);
-    }
-    else {
-        auto h_n = n / 2;
-        ct_fft(input, output, h_n, 2 * stride);
-        ct_fft(input + stride, output + h_n, h_n, 2 * stride);
-        for (int k = 0; k < h_n; ++k) {
-            auto temp = output[k];
-            /*auto X_real = std::cos(2.0f * glm::pi<float>() * k / static_cast<float>(n)) * output[k + h_n].first;
-            auto X_img = std::sin(2.0f * glm::pi<float>() * k / static_cast<float>(n)) * output[k + h_n].second;*/
-            auto x = std::polar(1.0f, -2.0f * glm::pi<float>()
-                * static_cast<float>(k) / static_cast<float>(n)) * output[k + h_n];
-            output[k] = temp + x;
-            output[k + h_n] = temp - x;
-        }
-    }
-}
-
-// takes wavebuffer as input where output is 2 * size of wavebuffer due to complex numbers
-// the wavebuffer is interleaved into output before function call
-void ct_fft(const std::complex<float>* input, std::complex<float>* output, int n, int stride) {
-    if (n == 1) {
-        output[0] = input[0];
-    }
-    else {
-        auto h_n = n / 2;
-        ct_fft(input, output, h_n, 2 * stride);
-        ct_fft(input + stride, output + h_n, h_n, 2 * stride);
-        for (int k = 0; k < h_n; ++k) {
-            auto temp = output[k];
-            /*auto X_real = std::cos(2.0f * glm::pi<float>() * k / static_cast<float>(n)) * output[k + h_n].first;
-            auto X_img = std::sin(2.0f * glm::pi<float>() * k / static_cast<float>(n)) * output[k + h_n].second;*/
-            auto x = std::exp(std::complex<float>(0, -1) * 2.0f * glm::pi<float>()
-                * static_cast<float>(k) / static_cast<float>(n)) * output[k + h_n];
-            output[k] = temp + x;
-            output[k + h_n] = temp - x;
-        }
-    }
-}
-
-std::vector<std::complex<float>> cooley_tukey_fft(const std::vector<float>& input) {
-    std::vector<std::complex<float>> output(input.size());
-    ct_fft(input.data(), output.data(), input.size(), 1);
-    return output;
-}
-
-std::vector<std::complex<float>> cooley_tukey_fft(const std::vector<std::complex<float>>& input) {
-    std::vector<std::complex<float>> output(input.size());
-    ct_fft(input.data(), output.data(), input.size(), 1);
-    return output;
-}
-
-std::vector<std::complex<float>> inverse_cooley_tukey_fft(const std::vector<std::complex<float>>& input) {
-    std::vector<std::complex<float>> output(input.size());
-    std::vector<std::complex<float>> input_cpy(input.size());
-    for (size_t i = 0; i < input.size(); ++i) {
-        input_cpy.at(i) = std::conj(input.at(i));
-    }
-    ct_fft(input_cpy.data(), output.data(), input.size(), 1);
-    for (size_t i = 0; i < output.size(); ++i) {
-        output.at(i) = std::conj(output.at(i)) / static_cast<float>(output.size());
-    }
-    return output;
-}
-
-void cooley_tukey_fft_mag(const std::vector<float>& input, std::vector<float>& mag) {
-    std::vector<std::complex<float>> output(input.size());
-    ct_fft(input.data(), output.data(), input.size(), 1);
-    std::transform(std::execution::par, output.begin(), output.begin() + mag.size(), mag.begin(), [](const std::complex<float>& c) {
-        return std::sqrt(c.real() * c.real() + c.imag() * c.imag());
-        });
-}
-
-struct Ring_buffer {
-    Ring_buffer(size_t capacity) {
-        data = std::vector<float>(capacity, 0.0f);
-    }
-    void push(const std::vector<float>& values) {
-        std::rotate(data.begin(), data.begin() + values.size(), data.end());
-        std::copy(values.begin(), values.end(), data.end() - values.size());
-    }
-    std::vector<float> data;
-};
 
 std::pair<std::vector<unsigned int>, std::vector<glm::vec2>> gen_mesh_xz(int res_x, int res_z) {
     std::vector<glm::vec2> vertices(res_x * res_z);
@@ -217,9 +52,9 @@ std::pair<std::vector<unsigned int>, std::vector<glm::vec2>> gen_mesh_xz(int res
 }
 
 int main() {
-    auto fb_res = glm::ivec2(1600, 900);
+    auto fb_res = glm::ivec2(1600, 1600.0 / 4.0 * 3.0);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
-    vgl::Window window(fb_res.x, fb_res.y, "Hello");
+    vgl::Window window(fb_res.x, fb_res.y, "Hello", glfwGetPrimaryMonitor());
     window.enable_gl();
     glfwSwapInterval(0);
     glViewport(0, 0, fb_res.x, fb_res.y);
@@ -230,12 +65,22 @@ int main() {
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     vgl::ui::Gui gui(window);
 
+    struct Vis_settings {
+        glm::vec2 mesh_size;
+        glm::ivec2 grid_res;
+    } vis_settings{ {0.8f, 2.0f},{138, 256} };
+    auto vis_settings_ssbo = vgl::gl::create_buffer(vis_settings);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, vis_settings_ssbo);
+
     vgl::Camera cam;
     cam.rotation = glm::angleAxis(glm::radians(-10.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    cam.position = glm::vec4(0.0f, 0.02f, -0.1f, 1.0f);
+    //cam.rotation *= glm::angleAxis(glm::radians(-180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    cam.position = glm::vec4(0.0f, 0.02f, vis_settings.mesh_size.y + 0.005, 1.0f);
     cam.projection = glm::perspective(glm::radians(90.0f), fb_res.x / static_cast<float>(fb_res.y), 0.01f, 100.0f);
     auto cam_ssbo = vgl::gl::create_buffer(cam.get_cam_data(), GL_MAP_WRITE_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, cam_ssbo);
+
+    //auto car_img = vgl::file::load_image(vgl::file::resources_path / "images/car_back_window_1.jpg");
 
     float fs = 48000.0f;
     unsigned int block_length = 1024; // 2^10
@@ -255,18 +100,7 @@ int main() {
         GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
     Exp_moving_average_buffer ema_fft(std::sqrt(frequency_resolution), fft_mag.size());
 
-    struct Vis_settings {
-        glm::vec2 mesh_size;
-        glm::ivec2 grid_res;
-    } vis_settings{ {1.0f, -2.5f},{128, 256}};
-    auto vis_settings_ssbo = vgl::gl::create_buffer(vis_settings);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, vis_settings_ssbo);
-
     Ring_buffer heights(vis_settings.grid_res.x * vis_settings.grid_res.y);
-    auto heights_buffer = vgl::gl::create_buffer(heights.data, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-    const auto heights_ptr = glMapNamedBufferRange(heights_buffer, 0, heights.data.size() * sizeof(float),
-        GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, heights_buffer);
     auto height_map = vgl::gl::create_texture(GL_TEXTURE_2D);
     glTextureStorage2D(height_map, 1, GL_R32F, vis_settings.grid_res.x, vis_settings.grid_res.y);
     glTextureParameteri(height_map, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -277,11 +111,6 @@ int main() {
     vgl::gl::set_texture_data_2d(height_map, heights.data, vis_settings.grid_res.x, vis_settings.grid_res.y, GL_RED);
     auto height_handle = vgl::gl::get_texture_handle(height_map);
     Exp_moving_average_buffer ema_new_heights(4, vis_settings.grid_res.x);
-
-    auto bin_size = (fft_mag.size() / 2 - 1) / static_cast<float>(vis_settings.grid_res.x);
-    float steps_per_bin = 10;
-    auto bin_step_size = bin_size / steps_per_bin;
-    std::vector<float> temp_heights(vis_settings.grid_res.x, 0.0f);
 
     auto noise_texture = vgl::gl::create_texture(GL_TEXTURE_2D);
     glTextureStorage2D(noise_texture, 1, GL_R32F, 480, 320);
@@ -300,6 +129,93 @@ int main() {
         vgl::gl::set_texture_data_2d(noise_texture, noise_data, 480, 320, GL_RED);
     }
     auto noise_handle = vgl::gl::get_texture_handle(noise_texture);
+
+
+    struct Billboard_texture {
+        GLuint64 texture;
+        float aspect_ratio;
+    };
+
+    std::vector<vgl::gl::gltexture> billboard_gl_tex(5);
+    std::vector<Billboard_texture> billboard_textures;
+    for (int i = 0; i < 5; ++i) {
+        auto palm_tree_one_stbi = vgl::file::load_image(vgl::file::resources_path / ("images/music_vis/palm_tree_"
+            + std::to_string(i + 1) + ".png"), 4, true);
+        auto palm_tree_one_desc = vgl::img::get_image_desc(palm_tree_one_stbi);
+        billboard_gl_tex.at(i) = vgl::gl::create_texture(GL_TEXTURE_2D);
+        glTextureStorage2D(billboard_gl_tex.at(i), 1, vgl::gl::derive_internal_format(palm_tree_one_stbi),
+            palm_tree_one_desc.width, palm_tree_one_desc.height);
+        glTextureParameteri(billboard_gl_tex.at(i), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(billboard_gl_tex.at(i), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(billboard_gl_tex.at(i), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTextureParameteri(billboard_gl_tex.at(i), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        vgl::gl::set_texture_data_2d(billboard_gl_tex.at(i), palm_tree_one_stbi);
+        billboard_textures.push_back({ vgl::gl::get_texture_handle(billboard_gl_tex.at(i)),
+            palm_tree_one_desc.width / static_cast<float>(palm_tree_one_desc.height) });
+    }
+
+    std::vector<GLuint64> iced_tea_handles;
+    std::vector<vgl::gl::gltexture> iced_tea_tex(5);
+    for (int i = 0; i < 4; ++i) {
+        auto palm_tree_one_stbi = vgl::file::load_image(vgl::file::resources_path / ("images/music_vis/arizona_"
+            + std::to_string(i + 1) + ".png"), 4);
+        auto palm_tree_one_desc = vgl::img::get_image_desc(palm_tree_one_stbi);
+        iced_tea_tex.at(i) = vgl::gl::create_texture(GL_TEXTURE_2D);
+        glTextureStorage2D(iced_tea_tex.at(i), 1, vgl::gl::derive_internal_format(palm_tree_one_stbi),
+            palm_tree_one_desc.width, palm_tree_one_desc.height);
+        glTextureParameteri(iced_tea_tex.at(i), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(iced_tea_tex.at(i), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(iced_tea_tex.at(i), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTextureParameteri(iced_tea_tex.at(i), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        vgl::gl::set_texture_data_2d(iced_tea_tex.at(i), palm_tree_one_stbi);
+        iced_tea_handles.push_back(vgl::gl::get_texture_handle(iced_tea_tex.at(i)));
+    }
+
+
+    auto fiji_stbi = vgl::file::load_image(vgl::file::resources_path / ("images/music_vis/fiji.png"), 4);
+    auto fiji_desc = vgl::img::get_image_desc(fiji_stbi);
+    iced_tea_tex.at(4) = vgl::gl::create_texture(GL_TEXTURE_2D);
+    glTextureStorage2D(iced_tea_tex.at(4), 1, vgl::gl::derive_internal_format(fiji_stbi),
+        fiji_desc.width, fiji_desc.height);
+    glTextureParameteri(iced_tea_tex.at(4), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(iced_tea_tex.at(4), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(iced_tea_tex.at(4), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTextureParameteri(iced_tea_tex.at(4), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    vgl::gl::set_texture_data_2d(iced_tea_tex.at(4), fiji_stbi);
+    iced_tea_handles.push_back(vgl::gl::get_texture_handle(iced_tea_tex.at(4)));
+
+    auto iced_tea_ssbo = vgl::gl::create_buffer(iced_tea_handles);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, iced_tea_ssbo);
+
+    struct Billboard_def {
+        Billboard_def(glm::vec2 p, glm::vec2 s) : pos(p), scale(s) {};
+        glm::vec2 pos;
+        glm::vec2 scale;
+        float noise_offset = 0.0f;
+        float height_noise = 0.0f;
+        int pad1, pad2;
+    };
+
+    std::vector<Billboard_def> billboards;
+    billboards.push_back({ glm::vec2(0.5, 2.0f), glm::vec2(-0.1, 0.1)});
+    billboards.push_back({ glm::vec2(0.5, 1.94f), glm::vec2(0.1, 0.1)});
+    billboards.push_back({ glm::vec2(0.5, 1.7f), glm::vec2(-0.1, 0.1)});
+    billboards.push_back({ glm::vec2(0.5, 1.4f), glm::vec2(0.1, 0.1)});
+    billboards.push_back({ glm::vec2(0.5, 1.33f), glm::vec2(-0.1, 0.1)});
+    billboards.push_back({ glm::vec2(0.5, 1.0f), glm::vec2(0.1, 0.1)});
+    billboards.push_back({ glm::vec2(0.5, 0.884f), glm::vec2(-0.1, 0.1)});
+    billboards.push_back({ glm::vec2(0.5, 0.7f), glm::vec2(0.1, 0.1)});
+    billboards.push_back({ glm::vec2(0.5, 0.6f), glm::vec2(-0.1, 0.1) });
+    billboards.push_back({ glm::vec2(0.5, 0.455f), glm::vec2(0.1, 0.1) });
+    billboards.push_back({ glm::vec2(0.5, 0.3f), glm::vec2(-0.1, 0.1) });
+    billboards.push_back({ glm::vec2(0.5, 0.14f), glm::vec2(0.1, 0.1) });
+
+    auto billboard_ssbo = vgl::gl::create_buffer(billboards);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, billboard_ssbo);
+
+    auto billboard_texture_ssbo = vgl::gl::create_buffer(billboard_textures);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, billboard_texture_ssbo);
+
 
     auto screen_vao = vgl::gl::create_vertex_array();
 
@@ -336,38 +252,94 @@ int main() {
     };
     reset_fb();
 
+    struct Particle {
+        glm::vec4 pos;
+        glm::vec4 vel;
+        glm::vec4 accel;
+        glm::vec3 color;
+        float lifetime{ 0.0f };
+    };
+
+    struct Particle_system_config {
+        int update_count = 0;
+        int offset = 0;
+        float speed_scale = 0.1f;
+        float lifetime_scale = 0.1f;
+        float point_size = 1.0;
+    };
+
+    Particle_system_config tea_system_config;
+    Particle_system_config water_system_config;
+    water_system_config.point_size = 3.8f;
+    water_system_config.lifetime_scale = 1.1f;
+    water_system_config.speed_scale = 0.420f;
+
+    water_system_config.update_count = half_block / 2;
+    tea_system_config.update_count = 16;
+    tea_system_config.lifetime_scale = 1.1f;
+    tea_system_config.speed_scale = 0.020f;
+
+    auto water_particle_count = water_system_config.update_count * 16;
+    auto tea_particle_count = tea_system_config.update_count * 32;
+
     vgl::gl::glprogram move_particles;
-    vgl::gl::glprogram spawn_particles;
+    vgl::gl::glprogram spawn_water_particles;
+    vgl::gl::glprogram spawn_iced_tea_particles;
     vgl::gl::glprogram render_particles;
+    vgl::gl::glprogram render_iced_tea;
     vgl::gl::glprogram render_mesh;
+    vgl::gl::glprogram render_billboards;
+    vgl::gl::glprogram background;
     vgl::gl::glprogram postprocess;
 
     auto reload_shader = [&]() {
-        auto vs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/render_particles.vert").contents;
+        auto vs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/render_water_particles.vert").contents;
         auto fs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/render_particles.frag").contents;
         auto comp_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/move_particles.comp").contents;
-        auto spawn_src = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/spawn_particles.comp").contents;
+        auto iced_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/render_iced_tea.vert").contents;
+        auto iced_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/render_iced_tea.frag").contents;
+        auto spawn_water_src = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/spawn_water_particles.comp").contents;
+        auto spawn_iced_tea_src = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/spawn_iced_tea_particles.comp").contents;
         auto particles_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, vs_source);
         auto particles_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, fs_source);
         render_particles = vgl::gl::create_program({ particles_vs, particles_fs });
+        auto iced_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, iced_vs_source);
+        auto iced_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, iced_fs_source);
+        render_iced_tea = vgl::gl::create_program({ iced_vs, iced_fs });
         auto move_cs = vgl::gl::create_shader(GL_COMPUTE_SHADER, comp_source);
         move_particles = vgl::gl::create_program({ move_cs });
-        auto spawn_cs = vgl::gl::create_shader(GL_COMPUTE_SHADER, spawn_src);
-        spawn_particles = vgl::gl::create_program({ spawn_cs });
+        auto spawn_cs = vgl::gl::create_shader(GL_COMPUTE_SHADER, spawn_iced_tea_src);
+        spawn_iced_tea_particles = vgl::gl::create_program({ spawn_cs });
+        auto spawn_water_cs = vgl::gl::create_shader(GL_COMPUTE_SHADER, spawn_water_src);
+        spawn_water_particles = vgl::gl::create_program({ spawn_water_cs });
         auto mesh_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/mesh.vert").contents;
         auto mesh_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/mesh.frag").contents;
         auto mesh_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, mesh_vs_source);
         auto mesh_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, mesh_fs_source);
         render_mesh = vgl::gl::create_program({ mesh_vs, mesh_fs });
+        auto billboards_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/billboards.vert").contents;
+        auto billboards_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/billboards.frag").contents;
+        auto billboards_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, billboards_vs_source);
+        auto billboards_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, billboards_fs_source);
+        render_billboards = vgl::gl::create_program({ billboards_vs, billboards_fs });
         auto pp_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "minimal/texture.vert").contents;
         auto pp_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/vcr.frag").contents;
         auto pp_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, pp_vs_source);
         auto pp_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, pp_fs_source);
+        auto background_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "music_vis/background.frag").contents;
+        auto background_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, background_fs_source);
         postprocess = vgl::gl::create_program({ pp_vs, pp_fs });
-        vgl::gl::update_uniform(postprocess, 3, fb_res.x / static_cast<float>(fb_res.y));
+        background = vgl::gl::create_program({ pp_vs, background_fs });
         vgl::gl::update_uniform(render_mesh, 0, height_handle);
+        vgl::gl::update_uniform(render_mesh, 1, noise_handle);
+        vgl::gl::update_uniform(render_billboards, 1, noise_handle);
         vgl::gl::update_uniform(postprocess, 0, vgl::gl::get_texture_handle(color_postprocess));
         vgl::gl::update_uniform(postprocess, 1, noise_handle);
+        vgl::gl::update_uniform(postprocess, 3, fb_res.x / static_cast<float>(fb_res.y));
+        vgl::gl::update_uniform(background, 0, fb_res.x / static_cast<float>(fb_res.y));
+        vgl::gl::update_uniform(render_iced_tea, 0, water_particle_count);
+        vgl::gl::update_uniform(spawn_iced_tea_particles, 0, noise_handle);
+        vgl::gl::update_uniform(spawn_iced_tea_particles, 2, water_particle_count);
     };
     reload_shader();
 
@@ -381,41 +353,28 @@ int main() {
             vgl::gl::update_full_buffer(cam_ssbo, cam.get_cam_data());
             vgl::gl::update_uniform(postprocess, 3, x / static_cast<float>(y));
             vgl::gl::update_uniform(postprocess, 0, vgl::gl::get_texture_handle(color_postprocess));
+            vgl::gl::update_uniform(background, 0, fb_res.x / static_cast<float>(fb_res.y));
         }
     };
 
-    struct Particle {
-        glm::vec4 pos;
-        glm::vec4 vel;
-        glm::vec4 accel;
-        glm::vec3 color;
-        float lifetime{ 0.0f };
-    };
-
-    struct Particle_system_config {
-        glm::mat4 rot{};
-        int update_count = 0;
-        int offset = 0;
-        float speed_scale = 0.1f;
-        float lifetime_scale = 0.1f;
-        float time = 0.0f;
-    } system_config;
-
-    auto particle_count = 1024 * 4 * block_length;
+    auto particle_count = water_particle_count + tea_particle_count;
     auto size_p = particle_count * sizeof(Particle);
     auto p_ssbo = vgl::gl::create_buffer_fixed_size(size_p, GL_MAP_WRITE_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, p_ssbo);
     auto vao = vgl::gl::create_vertex_array();
-    int particle_height = 16;
-    system_config.update_count = particle_height * half_block;
-    auto config_ssbo = vgl::gl::create_buffer(system_config, GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT);
-    const auto config_ptr = glMapNamedBufferRange(config_ssbo, 0, sizeof(system_config),
+    auto config_ssbo = vgl::gl::create_buffer(tea_system_config, GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT);
+    const auto config_ptr = glMapNamedBufferRange(config_ssbo, 0, sizeof(tea_system_config),
         GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, config_ssbo);
 
-    std::vector<Particle> particles(system_config.update_count);
+    auto sky_config_ssbo = vgl::gl::create_buffer(water_system_config, GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT);
+    const auto sky_config_ptr = glMapNamedBufferRange(sky_config_ssbo, 0, sizeof(water_system_config),
+        GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, sky_config_ssbo);
+
     glEnable(GL_PROGRAM_POINT_SIZE);
     glEnable(GL_POINT_SPRITE);
+    float chromatic_abboration = 0.0f;
 
     using high_res_clock = std::chrono::high_resolution_clock;
     auto current = high_res_clock::now();
@@ -423,14 +382,18 @@ int main() {
     float dt = 0.0f;
     float update_time = 0.0f;
     bool pause = false;
-    float point_size = 1.0f;
     std::array<int, 3> wgs{ 1, 1, 1 };
     impl::Volume_getter vg;
     float curr_time = 0.0f;
     float offset = 0;
     float log_base = std::log(50000.0f);
+
+    float steps_per_bin = 10;
+    std::vector<float> temp_heights(vis_settings.grid_res.x, 0.0f);
     float eps_planck_taper = 0.1;
-    auto max_n = static_cast<int>(temp_heights.size()) - 5;
+    auto max_n = static_cast<int>(temp_heights.size()) - 15;
+    auto bin_size = (fft_mag.size() / 2 - 1) / static_cast<float>(max_n);
+    auto bin_step_size = bin_size / steps_per_bin;
     int eps_n = static_cast<int>(eps_planck_taper * max_n);
     float one_minus_eps_n = (1.0f - eps_planck_taper) * max_n;
     int one_minus_eps_n_floored = static_cast<int>(one_minus_eps_n);
@@ -449,6 +412,18 @@ int main() {
             static_cast<float>(max_n), static_cast<float>(i), std::minus{})) + 1.0f);
     }
 
+    auto spawn_iced_tea_lambda = [&]() {
+        if (tea_system_config.offset + tea_system_config.update_count >= tea_particle_count) {
+            tea_system_config.offset = 0;
+        }
+        std::memcpy(config_ptr, &tea_system_config, sizeof(tea_system_config));
+
+        glUseProgram(spawn_iced_tea_particles);
+        glGetProgramiv(spawn_iced_tea_particles, GL_COMPUTE_WORK_GROUP_SIZE, wgs.data());
+        glDispatchCompute(glm::ceil(tea_system_config.update_count / static_cast<float>(wgs.at(0))), 1, 1);
+        tea_system_config.offset += tea_system_config.update_count;
+    };
+    
     while (!window.should_close()) {
         //gui.start_frame();
         dt = std::chrono::duration<float>(current - previous).count();
@@ -457,13 +432,10 @@ int main() {
         previous = current;
         current = high_res_clock::now();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        /*system_config.time += dt;
-        system_config.rot = glm::mat4(glm::cos(acc), 0, -glm::sin(acc), 0, 0, 1.0f, 0, 0, glm::sin(acc), 0, glm::cos(acc), 0, 0, 0, 0, 1);
-        acc += dt * 0.1f * glm::pi<float>();
-        std::memcpy(config_ptr, &system_config, sizeof(system_config));*/
+        /*system_config.rot = glm::mat4(glm::cos(acc), 0, -glm::sin(acc), 0, 0, 1.0f, 0, 0, glm::sin(acc), 0, glm::cos(acc), 0, 0, 0, 0, 1);
+        acc += dt * 0.1f * glm::pi<float>();*/
         if (!pause && update_time > measurement_duration) {
-            std::cout << "U:" << update_time << "; M:" << measurement_duration << "; dt:" << dt << "\n";
+            //std::cout << "U:" << update_time << "; M:" << measurement_duration << "; dt:" << dt << "\n";
             update_time -= measurement_duration;
             //if (rec.receive()) {
             {
@@ -485,6 +457,7 @@ int main() {
                 }
                 cooley_tukey_fft_mag(wavebuffer, fft_mag);
                 fft_mag.at(0) = 0;
+                ema_fft.add(fft_mag);
                 for (int i = 0; i < eps_n; ++i) {
                     temp_heights.at(i) = 0.0f;
                     for (float b = 0; b < steps_per_bin; ++b) {
@@ -513,6 +486,32 @@ int main() {
                 }
                 ema_new_heights.add(temp_heights);
                 heights.push(ema_new_heights.ema);
+                vgl::gl::update_uniform(spawn_iced_tea_particles, 1, curr_time);
+                std::memcpy(fft_ptr, &ema_fft.ema, sizeof(float)* ema_fft.ema.size());
+                if (ema_fft.ema.at(1) * 1.5 < fft_mag.at(1)) {
+                    if (water_system_config.offset + water_system_config.update_count >= water_particle_count) {
+                        water_system_config.offset = 0;
+                    }
+                    std::memcpy(sky_config_ptr, &water_system_config, sizeof(water_system_config));
+
+                    glUseProgram(spawn_water_particles);
+                    glGetProgramiv(spawn_water_particles, GL_COMPUTE_WORK_GROUP_SIZE, wgs.data());
+                    glDispatchCompute(glm::ceil(water_system_config.update_count / static_cast<float>(wgs.at(0))), 1, 1);
+                    water_system_config.offset += water_system_config.update_count;
+                }
+                if (ema_fft.ema.at(half_block * 0.3) * 3.4 < fft_mag.at(half_block * 0.3)) {
+                    chromatic_abboration = 2.f;
+                }
+                if (ema_fft.ema.at(1) * 1.5 < fft_mag.at(1)) {
+                    vgl::gl::update_uniform(spawn_iced_tea_particles, 3, 0.03f);
+                    spawn_iced_tea_lambda();
+                    vgl::gl::update_uniform(spawn_iced_tea_particles, 3, -0.03f);
+                    spawn_iced_tea_lambda();
+                }
+                if (ema_fft.ema.at(half_block * 0.5) * 3.4 < fft_mag.at(half_block * 0.5)) {
+                    vgl::gl::update_uniform(spawn_iced_tea_particles, 3, 0.0f);
+                    spawn_iced_tea_lambda();
+                }
                 //std::memcpy(heights_ptr, heights.data.data(), heights.data.size() * sizeof(float));
             }
             else {
@@ -520,49 +519,56 @@ int main() {
             }
             vgl::gl::set_texture_data_2d(height_map, heights.data, vis_settings.grid_res.x, vis_settings.grid_res.y, GL_RED);
             offset += 1.0f / vis_settings.grid_res.y;
-            vgl::gl::update_uniform(render_mesh, 1, offset);
+            vgl::gl::update_uniform(render_mesh, 2, curr_time);
+            vgl::gl::update_uniform(render_mesh, 3, offset);
             glBindFramebuffer(GL_FRAMEBUFFER, fb_postprocess);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glDepthMask(GL_FALSE);
+            glBindVertexArray(screen_vao);
+            glUseProgram(background);
+            glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 4, 1, 0);
+            glDepthMask(GL_TRUE);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             glBindVertexArray(mesh_vao);
             glUseProgram(render_mesh);
             glDrawElementsInstancedBaseInstance(GL_TRIANGLE_STRIP, mesh.first.size(), GL_UNSIGNED_INT, nullptr, 1, 0);
-            
-            /*if (system_config.offset + system_config.update_count >= particle_count) {
-                system_config.offset = 0;
-            }
-
-            glUseProgram(spawn_particles);
-            glGetProgramiv(spawn_particles, GL_COMPUTE_WORK_GROUP_SIZE, wgs.data());
-            glDispatchCompute(glm::ceil(system_config.update_count / static_cast<float>(wgs.at(0))), 1, 1);
-            system_config.offset += system_config.update_count;*/
+            vgl::gl::update_uniform(render_billboards, 0, offset);
+            glBindVertexArray(screen_vao);
+            glUseProgram(render_billboards);
+            glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 4, billboards.size(), 0);
+            glDisable(GL_BLEND);
         }
 /*
         if (ImGui::Begin("Vis")) {
             if (ImGui::Button("Play / Pause")) pause = !pause;
             ImGui::DragFloat("Point size", &point_size, 0.05f);
-            ImGui::DragFloat("Speed scale", &system_config.speed_scale, 0.01f);
-            ImGui::DragFloat("Lifetime scale", &system_config.lifetime_scale, 0.01f);
+            ImGui::DragFloat("Speed scale", &water_system_config.speed_scale, 0.01f);
+            ImGui::DragFloat("Lifetime scale", &water_system_config.lifetime_scale, 0.01f);
             ImGui::DragFloat("Planck taper eps", &eps_planck_taper, 0.01f, 0.0f, 0.99f);
         }
         ImGui::End();*/
 
-        vgl::gl::update_uniform(render_particles, 0, point_size);
-/*
+        glBindFramebuffer(GL_FRAMEBUFFER, fb_postprocess);
         glUseProgram(move_particles);
         glGetProgramiv(move_particles, GL_COMPUTE_WORK_GROUP_SIZE, wgs.data());
         vgl::gl::update_uniform(move_particles, 0, dt);
-        glDispatchCompute(glm::ceil(size_p / static_cast<float>(wgs.at(0))), 1, 1);
-
+        glDispatchCompute(glm::ceil(particle_count / static_cast<float>(wgs.at(0))), 1, 1);
+        
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-        glUseProgram(render_particles);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glBindVertexArray(vao);
-        glDrawArraysInstancedBaseInstance(GL_POINTS, 0, 1, particle_count, 0);
-        glDisable(GL_BLEND);*/
+        glUseProgram(render_particles);
+        glDrawArraysInstancedBaseInstance(GL_POINTS, 0, 1, water_particle_count, 0);
+        glUseProgram(render_iced_tea);
+        glDrawArraysInstancedBaseInstance(GL_POINTS, 0, 1, tea_particle_count, 0);
+        glDisable(GL_BLEND);
 
         glDisable(GL_DEPTH_TEST);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         vgl::gl::update_uniform(postprocess, 2, curr_time);
+        vgl::gl::update_uniform(postprocess, 4, chromatic_abboration);
+        chromatic_abboration -= 0.01;
         glUseProgram(postprocess);
         glBindVertexArray(screen_vao);
         glDrawArraysInstancedBaseInstance(GL_TRIANGLES, 0, 3, 1, 0);
