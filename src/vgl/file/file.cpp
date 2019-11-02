@@ -1,5 +1,5 @@
 #include "file.hpp"
-#include "nfd.h"
+#include "nfd/nfd.h"
 #include <fstream>
 
 bool vgl::file::is_file(const std::filesystem::path& path) {

@@ -6,28 +6,39 @@ endif()
 
 configure_file(${SRC_PATH}/vgl/file/file_paths.hpp.in ${SRC_PATH}/vgl/file/file_paths.hpp @ONLY)
 
-add_library(vgl
-	vgl/file/stb_impl.cpp
-	vgl/file/file.cpp
-	vgl/file/image_file.cpp
-	vgl/file/image.cpp
-	vgl/gpu_api/gl/handle.cpp
-	vgl/rendering/camera.cpp
-	vgl/rendering/scene.cpp
-	vgl/control/window.cpp
-	vgl/control/gui.cpp)
+add_library(libvgl
+    vgl/file/stb_impl.cpp
+    vgl/file/file.cpp
+    vgl/file/image_file.cpp
+    vgl/file/image.cpp
+    vgl/gpu_api/gl/handle.cpp
+    vgl/rendering/camera.cpp
+    vgl/rendering/scene.cpp
+    vgl/control/window.cpp
+    vgl/control/gui.cpp)
 
-target_include_directories(vgl
-	PUBLIC
-		$<BUILD_INTERFACE:${SRC_PATH}>)
+target_include_directories(libvgl
+    PUBLIC
+        $<BUILD_INTERFACE:${SRC_PATH}>)
 
 
-target_compile_definitions(vgl
+target_compile_definitions(libvgl
     PUBLIC 
         GLFW_INCLUDE_NONE
         GLM_FORCE_RADIANS
         GLM_ENABLE_EXPERIMENTAL)
 
-target_compile_features(vgl PUBLIC cxx_std_17)
-target_link_libraries(vgl PUBLIC OpenGL::GL glad::glad glfw::glfw assimp::assimp stb::stb OpenMP::OpenMP_CXX
-					  imgui::imgui glm::glm nativefiledialog glsp::glsp iconfont::iconfont)
+target_compile_features(libvgl PUBLIC cxx_std_17)
+set_target_properties(libvgl PROPERTIES
+            LINKER_LANGUAGE CXX
+            CXX_STANDARD 17
+            CXX_EXTENSIONS OFF
+            CXX_STANDARD_REQUIRED ON)
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set_target_properties(libvgl PROPERTIES
+            LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
+endif()
+
+target_link_libraries(libvgl PUBLIC OpenGL::GL glad::glad glfw assimp::assimp stb::stb OpenMP::OpenMP_CXX
+                      imgui::imgui glm::glm nativefiledialog::nativefiledialog glsp::glsp iconfont::iconfont)
+                      

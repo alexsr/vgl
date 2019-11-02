@@ -131,7 +131,7 @@ std::vector<T> populate_image(const std::vector<T>& ref, int ref_channels, int r
 
 int main(int argc, char* argv[]) {
     if (argc != 2 && argc != 3) {
-        std::cout << "Usage: cubemap_generator <path_to_image> [<longitude_zero>]\n";
+        std::cout << "Usage: cubemap_generator <path_to_image> [<longitchrome://vivaldi-webui/startpage?section=Speed-dials&activeSpeedDialIndex=0&background-color=#2e2e2eude_zero>]\n";
         return 1;
     }
     const auto path = std::filesystem::path(argv[1]);

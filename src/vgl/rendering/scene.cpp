@@ -145,24 +145,24 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
     std::vector<size_t> start_vertices(ai_scene->mNumMeshes + 1, 0);
     for (unsigned int m = 0; m < ai_scene->mNumMeshes; m++) {
         auto ai_mesh = ai_scene->mMeshes[m];
-        start_indices.at(m + 1) = start_indices.at(m) + ai_mesh->mNumFaces;
-        start_vertices.at(m + 1) = start_vertices.at(m) + ai_mesh->mNumVertices;
+        start_indices[m + 1] = start_indices[m] + ai_mesh->mNumFaces;
+        start_vertices[m + 1] = start_vertices[m] + ai_mesh->mNumVertices;
     }
     scene.indices.resize(start_indices.back() * 3);
     scene.vertices.resize(start_vertices.back());
     scene.draw_cmds.resize(ai_scene->mNumMeshes);
 #pragma omp parallel for
-    for (unsigned int m = 0; m < ai_scene->mNumMeshes; m++) {
+    for (int m = 0; m < ai_scene->mNumMeshes; m++) {
         auto ai_mesh = ai_scene->mMeshes[m];
-        scene.draw_cmds.at(m) = gl::Indirect_elements_command{
+        scene.draw_cmds[m] = gl::Indirect_elements_command{
             static_cast<unsigned int>(ai_mesh->mNumFaces * 3),
             1,
-            static_cast<unsigned int>(start_indices.at(m) * 3),
-            static_cast<unsigned int>(start_vertices.at(m)),
+            static_cast<unsigned int>(start_indices[m] * 3),
+            static_cast<unsigned int>(start_vertices[m]),
             0
             };
         for (int i = 0; i < static_cast<int>(ai_mesh->mNumFaces); i++) {
-            auto scene_i = start_indices.at(m) + i;
+            auto scene_i = start_indices[m] + i;
             if (ai_mesh->mFaces->mNumIndices != 3) {
                 continue;
             }
@@ -172,7 +172,7 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
         }
         Bounds bounds{};
         for (int i = 0; i < static_cast<int>(ai_mesh->mNumVertices); i++) {
-            auto scene_i = start_vertices.at(m) + i;
+            auto scene_i = start_vertices[m] + i;
             scene.vertices[scene_i].pos = glm::vec4(reinterpret_cast<glm::vec3&>(ai_mesh->mVertices[i]), 1.0f);
             bounds.min = glm::min(bounds.min, scene.vertices[scene_i].pos);
             bounds.max = glm::max(bounds.max, scene.vertices[scene_i].pos);
@@ -186,26 +186,26 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
                 scene.vertices[scene_i].uv = glm::vec4(reinterpret_cast<glm::vec2&>(ai_mesh->mTextureCoords[0][i]), 0.0f, 0.0f);
             }
         }
-        scene.object_bounds.at(m) = bounds;
+        scene.object_bounds[m] = bounds;
         scene.scene_bounds.join(bounds);
         if (ai_scene->mMeshes[m]->mMaterialIndex >= 0) {
-            scene.objects.at(m).material_id = static_cast<int>(ai_scene->mMeshes[m]->mMaterialIndex);
+            scene.objects[m].material_id = static_cast<int>(ai_scene->mMeshes[m]->mMaterialIndex);
             if (names.find(ai_scene->mMeshes[m]->mMaterialIndex) != names.end()) {
                 auto name = names[ai_scene->mMeshes[m]->mMaterialIndex];
                 if (diffuse_map.find(name) != diffuse_map.end()) {
-                    scene.objects.at(m).texture_diffuse = static_cast<int>(texture_map[diffuse_map[name]]);
+                    scene.objects[m].texture_diffuse = static_cast<int>(texture_map[diffuse_map[name]]);
                 }
                 if (normal_map.find(name) != normal_map.end()) {
-                    scene.objects.at(m).texture_normal = static_cast<int>(texture_map[normal_map[name]]);
+                    scene.objects[m].texture_normal = static_cast<int>(texture_map[normal_map[name]]);
                 }
                 if (specular_map.find(name) != specular_map.end()) {
-                    scene.objects.at(m).texture_specular = static_cast<int>(texture_map[specular_map[name]]);
+                    scene.objects[m].texture_specular = static_cast<int>(texture_map[specular_map[name]]);
                 }
                 if (emissive_map.find(name) != emissive_map.end()) {
-                    scene.objects.at(m).texture_emissive = static_cast<int>(texture_map[emissive_map[name]]);
+                    scene.objects[m].texture_emissive = static_cast<int>(texture_map[emissive_map[name]]);
                 }
                 if (height_map.find(name) != height_map.end()) {
-                    scene.objects.at(m).texture_height = static_cast<int>(texture_map[height_map[name]]);
+                    scene.objects[m].texture_height = static_cast<int>(texture_map[height_map[name]]);
                 }
             }
         }
