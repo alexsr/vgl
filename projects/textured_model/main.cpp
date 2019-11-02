@@ -26,31 +26,6 @@ extern "C" {
 _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 }
 
-float gen_random_float(const float lower, const float upper) {
-    std::random_device rd;
-    std::mt19937 eng(rd());
-    const std::uniform_real_distribution<float> uni(lower, upper);
-    return uni(eng);
-}
-
-glm::vec4 gen_random_vec4(const float lower = 0.0f, const float upper = 1.0f, const float w = 1.0f) {
-    return glm::vec4(gen_random_float(lower, upper), gen_random_float(lower, upper), gen_random_float(lower, upper), w);
-}
-
-std::pair<glm::vec3, glm::vec3> plane_vecs(glm::vec3 n) {
-    glm::vec3 w(0, 0, 1);
-    glm::vec3 n_abs(glm::abs(n));
-    if (n_abs.x < glm::min(n_abs.y, n_abs.z)) {
-        w = glm::vec3(1, 0, 0);
-    }
-    else if (n_abs.y < glm::min(n_abs.x, n_abs.z)) {
-        w = glm::vec3(0, 1, 0);
-    }
-    glm::vec3 u = glm::normalize(cross(w, n));
-    glm::vec3 v = glm::normalize(cross(n, u));
-    return {u, v};
-}
-
 struct G_buffer {
     vgl::gl::glframebuffer fbo;
     vgl::gl::gltexture color;
@@ -132,7 +107,7 @@ int main() {
     glfwGetFramebufferSize(window.get(), &config.fb_res.x, &config.fb_res.y);
 
     vgl::Camera cam;
-    cam.rotation_speed = 3.0f;
+    cam.rotation_speed = 30.0f;
     cam.projection = glm::perspective(glm::radians(60.0f), 16.0f / 9.0f, 0.001f, 100.0f);
 
     auto cam_ssbo = vgl::gl::create_buffer(cam.get_cam_data(), GL_MAP_WRITE_BIT);

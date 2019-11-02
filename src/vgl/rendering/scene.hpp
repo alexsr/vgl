@@ -24,8 +24,8 @@ namespace vgl
         int texture_normal = -1;
         int texture_height = -1;
         int texture_emissive = -1;
-        int pad1;
-        int pad2;
+        int pad1 = 0;
+        int pad2 = 0;
     };
 
     struct Scene {
