@@ -6,8 +6,7 @@
 #include "material.hpp"
 #include "vgl/gpu_api/gl/multidraw.hpp"
 #include "vgl/file/image_file.hpp"
-#include "glm/mat4x4.hpp"
-#include "assimp/postprocess.h"
+#include <assimp/postprocess.h>
 
 namespace vgl
 {
@@ -17,7 +16,7 @@ namespace vgl
     };
 
     struct Scene_object {
-        glm::mat4 model{ 1.0 };
+        Eigen::Matrix4f model = Eigen::Matrix4f::Identity();
         int material_id = -1;
         int texture_diffuse = -1;
         int texture_specular = -1;
@@ -31,8 +30,8 @@ namespace vgl
     struct Scene {
         std::vector<Vertex> vertices;
         std::vector<unsigned int> indices;
-        Bounds scene_bounds{};
-        std::vector<Bounds> object_bounds;
+        Eigen::AlignedBox4f scene_bounds{};
+        std::vector<Eigen::AlignedBox4f> object_bounds;
         std::vector<Scene_object> objects;
         std::vector<gl::Indirect_elements_command> draw_cmds;
         std::vector<Material> materials;

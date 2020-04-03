@@ -7,11 +7,8 @@ endif()
 include(${CMAKE_SOURCE_DIR}/cmake/projects.cmake)
 
 add_vgl_exe(textured_model libvgl)
-add_vgl_exe(normal_mapping libvgl)
-add_vgl_exe(pbr libvgl)
 add_vgl_exe(raytracing libvgl)
 add_vgl_exe(deferred libvgl)
-add_vgl_exe(raytracing_cpu libvgl)
 
 add_executable(cubemap_generator cubemap_generator/main.cpp)
 target_link_libraries(cubemap_generator PUBLIC stb::stb)
@@ -22,7 +19,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 add_custom_command(
-        TARGET textured_model POST_BUILD
+        TARGET deferred POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
                 ${CMAKE_SOURCE_DIR}/../cppdependencies/install-x64-Release/bin/
                 ${CMAKE_CURRENT_BINARY_DIR}/)

@@ -1,52 +1,23 @@
-#include "vgl/control/window.hpp"
-#include "glm/glm.hpp"
-#include "glm/gtc/quaternion.hpp"
-#include "vgl/rendering/scene.hpp"
+#include "vgl/core/window.hpp"
+#include "vgl/core/gui.hpp"
 #include "vgl/file/file.hpp"
-#include "glm/gtc/matrix_transform.hpp"
+#include "vgl/file/image_file.hpp"
 #include "vgl/gpu_api/gl/shader.hpp"
 #include "vgl/gpu_api/gl/buffer.hpp"
 #include "vgl/gpu_api/gl/vao.hpp"
-#include <chrono>
-#include "glm/gtc/type_ptr.hpp"
-#include <random>
 #include "vgl/gpu_api/gl/texture.hpp"
-#include <glsp/preprocess.hpp>
-#include "vgl/file/image_file.hpp"
 #include "vgl/gpu_api/gl/framebuffer.hpp"
 #include "vgl/gpu_api/gl/debug.hpp"
-#include "vgl/control/gui.hpp"
 #include "vgl/rendering/camera.hpp"
 #include "vgl/rendering/light.hpp"
+#include "vgl/rendering/scene.hpp"
+#include <glsp/preprocess.hpp>
+#include <chrono>
+#include <random>
 
 // enable optimus!
 extern "C" {
-    _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001;
-}
-
-float gen_random_float(const float lower, const float upper) {
-    std::random_device rd;
-    std::mt19937 eng(rd());
-    const std::uniform_real_distribution<float> uni(lower, upper);
-    return uni(eng);
-}
-
-glm::vec4 gen_random_vec4(const float lower = 0.0f, const float upper = 1.0f, const float w = 1.0f) {
-    return glm::vec4(gen_random_float(lower, upper), gen_random_float(lower, upper), gen_random_float(lower, upper), w);
-}
-
-std::pair<glm::vec3, glm::vec3> plane_vecs(glm::vec3 n) {
-    glm::vec3 w(0, 0, 1);
-    glm::vec3 n_abs(glm::abs(n));
-    if (n_abs.x < glm::min(n_abs.y, n_abs.z)) {
-        w = glm::vec3(1, 0, 0);
-    }
-    else if (n_abs.y < glm::min(n_abs.x, n_abs.z)) {
-        w = glm::vec3(0, 1, 0);
-    }
-    glm::vec3 u = glm::normalize(cross(w, n));
-    glm::vec3 v = glm::normalize(cross(n, u));
-    return {u, v};
+_declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001;
 }
 
 struct G_buffer {
@@ -56,47 +27,48 @@ struct G_buffer {
     vgl::gl::gltexture pos;
     vgl::gl::gltexture normal;
     vgl::gl::gltexture depth;
-    void init(glm::ivec2 size) {
+    void init(Eigen::Vector2i const& size) {
         fbo = vgl::gl::create_framebuffer();
         color = vgl::gl::create_texture(GL_TEXTURE_2D);
         glTextureParameteri(color, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTextureParameteri(color, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTextureStorage2D(color, 1, GL_RGBA32F, size.x, size.y);
+        glTextureStorage2D(color, 1, GL_RGBA32F, size.x(), size.y());
         glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0, color, 0);
         specular = vgl::gl::create_texture(GL_TEXTURE_2D);
         glTextureParameteri(specular, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTextureParameteri(specular, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTextureStorage2D(specular, 1, GL_RGBA32F, size.x, size.y);
+        glTextureStorage2D(specular, 1, GL_RGBA32F, size.x(), size.y());
         glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT1, specular, 0);
         normal = vgl::gl::create_texture(GL_TEXTURE_2D);
         glTextureParameteri(normal, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTextureParameteri(normal, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTextureStorage2D(normal, 1, GL_RGB32F, size.x, size.y);
+        glTextureStorage2D(normal, 1, GL_RGB32F, size.x(), size.y());
         glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT2, normal, 0);
         pos = vgl::gl::create_texture(GL_TEXTURE_2D);
         glTextureParameteri(pos, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTextureParameteri(pos, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTextureStorage2D(pos, 1, GL_RGB32F, size.x, size.y);
+        glTextureStorage2D(pos, 1, GL_RGB32F, size.x(), size.y());
         glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT3, pos, 0);
         depth = vgl::gl::create_texture(GL_TEXTURE_2D);
         glTextureParameteri(depth, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTextureParameteri(depth, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTextureStorage2D(depth, 1, GL_DEPTH24_STENCIL8, size.x, size.y);
+        glTextureStorage2D(depth, 1, GL_DEPTH24_STENCIL8, size.x(), size.y());
         glNamedFramebufferTexture(fbo, GL_DEPTH_ATTACHMENT, depth, 0);
-        vgl::gl::attach_draw_buffers(fbo, { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 });
+        vgl::gl::attach_draw_buffers(
+            fbo, {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3});
         vgl::gl::check_framebuffer(fbo);
     }
 };
 
 int main() {
-    auto w_res = glm::ivec2(1600, 900);
+    Eigen::Vector2i w_res(1600, 900);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     glfwWindowHint(GLFW_SAMPLES, 4);
-    vgl::Window window(w_res.x, w_res.y, "Hello");
+    vgl::Window window(w_res.x(), w_res.y(), "Hello");
     window.enable_gl();
-    //glfwWindowHint(GLFW_DEPTH_BITS, 32);
+    // glfwWindowHint(GLFW_DEPTH_BITS, 32);
     glfwSwapInterval(0);
-    glViewport(0, 0, w_res.x, w_res.y);
+    glViewport(0, 0, w_res.x(), w_res.y());
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_DEBUG_OUTPUT);
@@ -105,9 +77,6 @@ int main() {
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
     glEnable(GL_MULTISAMPLE);
-    int samples = 0;
-    glGetIntegerv(GL_SAMPLES, &samples);
-    std::cout << samples << "\n";
     vgl::ui::Gui gui(window);
 
     struct Cubemap_config {
@@ -118,9 +87,10 @@ int main() {
     };
 
     struct Demo_config {
-        std::vector<vgl::Light> lights{ vgl::Light{glm::vec4(0, 0, 0, 1.0), glm::vec4(1.0), glm::vec4(0.0, -1.0, 0.0, 0.0),
-            vgl::Attenuation{}, glm::pi<float>() / 4.0f, 1, 1, 0} };
-        glm::ivec2 fb_res;
+        std::vector<vgl::Light> lights{vgl::Light{Eigen::Vector4f(0, 0, 0, 1.0), Eigen::Vector4f::Ones(),
+                                                  Eigen::Vector4f(0.0, -1.0, 0.0, 0.0), vgl::Attenuation{},
+                                                  math::pi<float> / 4.0f, 1, 1, 0}};
+        Eigen::Vector2i fb_res;
         bool mesh_loaded = false;
         bool lights_added_or_removed = false;
         bool cubemap_active = false;
@@ -132,59 +102,91 @@ int main() {
         bool preview_deferred = false;
         bool activate_frustum_culling = false;
     } config;
-    glfwGetFramebufferSize(window.get(), &config.fb_res.x, &config.fb_res.y);
+    glfwGetFramebufferSize(window.get(), &config.fb_res.x(), &config.fb_res.y());
 
-    vgl::Camera cam;
-    cam.rotation_speed = 3.0f;
-    cam.projection = glm::perspective(glm::radians(60.0f), 16.0f / 9.0f, 0.001f, 100.0f);
+    vgl::Fly_through_controller cam_controller(
+        [&window](Eigen::Vector3d& dir) {
+            if (!ImGui::IsAnyItemFocused() && !ImGui::IsAnyItemActive()) {
+                dir = Eigen::Vector3d(
+                    static_cast<double>(window.key[GLFW_KEY_D]) - static_cast<double>(window.key[GLFW_KEY_A]),
+                    static_cast<double>(window.key[GLFW_KEY_E]) - static_cast<double>(window.key[GLFW_KEY_Q]),
+                    static_cast<double>(window.key[GLFW_KEY_S]) - static_cast<double>(window.key[GLFW_KEY_W]));
+                if (dir.squaredNorm() != 0.0f) {
+                    if (window.key[GLFW_KEY_SPACE]) {
+                        dir *= 10.0;
+                    }
+                    return true;
+                }
+            }
+            return false;
+        },
+        [&window](Eigen::Vector2d& angles) {
+            if (!ImGui::IsAnyItemFocused() && !ImGui::IsAnyItemActive()) {
+                if (window.mouse[GLFW_MOUSE_BUTTON_LEFT]) {
+                    angles = math::to_radians(Eigen::Vector2d(window.cursor_delta.y(), window.cursor_delta.x()));
+                    return true;
+                }
+            }
+            return false;
+        });
+    vgl::GLCamera cam;
+    cam_controller.set_rotate_speed(3.0);
+    cam.projection = vgl::perspective_projection<double>(16.0 / 9.0, 90.0, 0.001, 100.0);
 
     auto cam_ssbo = vgl::gl::create_buffer(cam.get_cam_data(), GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, cam_ssbo);
 
-    vgl::gl::glprogram deferred_prepass, deferred_lighting, depth_prepass, lights_debug,
-        aabb_debug, screen, cubemap, cubemap_equirect, frustum_culling;
+    vgl::gl::glprogram deferred_prepass, deferred_lighting, depth_prepass, lights_debug, aabb_debug, screen, cubemap,
+        cubemap_equirect, frustum_culling;
 
     auto reload_shaders = [&]() {
-        auto frustum_culling_source = glsp::preprocess_file(vgl::file::shaders_path / "util/frustum_culling.comp").contents;
+        auto frustum_culling_source =
+            glsp::preprocess_file(vgl::file::shaders_path / "util/frustum_culling.comp").contents;
         auto frustum_culling_cs = vgl::gl::create_shader(GL_COMPUTE_SHADER, frustum_culling_source);
-        frustum_culling = vgl::gl::create_program({ frustum_culling_cs });
+        frustum_culling = vgl::gl::create_program({frustum_culling_cs});
 
         auto screen_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/screen.vert").contents;
         auto screen_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/screen.frag").contents;
         auto screen_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, screen_vs_source);
         auto screen_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, screen_fs_source);
-        screen = vgl::gl::create_program({ screen_vs, screen_fs });
+        screen = vgl::gl::create_program({screen_vs, screen_fs});
 
-        auto deferred_prepass_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/shading.vert").contents;
-        auto deferred_prepass_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/deferred_geometry.frag").contents;
+        auto deferred_prepass_vs_source =
+            glsp::preprocess_file(vgl::file::shaders_path / "shading/shading.vert").contents;
+        auto deferred_prepass_fs_source =
+            glsp::preprocess_file(vgl::file::shaders_path / "shading/deferred_geometry.frag").contents;
         auto deferred_prepass_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, deferred_prepass_vs_source);
         auto deferred_prepass_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, deferred_prepass_fs_source);
-        deferred_prepass = vgl::gl::create_program({ deferred_prepass_vs, deferred_prepass_fs });
+        deferred_prepass = vgl::gl::create_program({deferred_prepass_vs, deferred_prepass_fs});
 
-        auto deferred_lighting_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/deferred_lighting.frag").contents;
+        auto deferred_lighting_fs_source =
+            glsp::preprocess_file(vgl::file::shaders_path / "shading/deferred_lighting.frag").contents;
         auto deferred_lighting_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, deferred_lighting_fs_source);
-        deferred_lighting = vgl::gl::create_program({ screen_vs, deferred_lighting_fs });
+        deferred_lighting = vgl::gl::create_program({screen_vs, deferred_lighting_fs});
 
         auto cubemap_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/cubemap.vert").contents;
         auto cubemap_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/cubemap.frag").contents;
-        auto cubemap_equirect_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "util/cubemap_equirectangular.frag").contents;
+        auto cubemap_equirect_fs_source =
+            glsp::preprocess_file(vgl::file::shaders_path / "util/cubemap_equirectangular.frag").contents;
         auto cubemap_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, cubemap_vs_source);
         auto cubemap_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, cubemap_fs_source);
         auto cubemap_equirect_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, cubemap_equirect_fs_source);
-        cubemap = vgl::gl::create_program({ cubemap_vs, cubemap_fs });
-        cubemap_equirect = vgl::gl::create_program({ cubemap_vs, cubemap_equirect_fs });
+        cubemap = vgl::gl::create_program({cubemap_vs, cubemap_fs});
+        cubemap_equirect = vgl::gl::create_program({cubemap_vs, cubemap_equirect_fs});
 
-        auto depth_prepass_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/depth_prepass.vert").contents;
-        auto depth_prepass_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "shading/depth_prepass.frag").contents;
+        auto depth_prepass_vs_source =
+            glsp::preprocess_file(vgl::file::shaders_path / "shading/depth_prepass.vert").contents;
+        auto depth_prepass_fs_source =
+            glsp::preprocess_file(vgl::file::shaders_path / "shading/depth_prepass.frag").contents;
         auto depth_prepass_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, depth_prepass_vs_source);
         auto depth_prepass_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, depth_prepass_fs_source);
-        depth_prepass = vgl::gl::create_program({ depth_prepass_vs, depth_prepass_fs });
+        depth_prepass = vgl::gl::create_program({depth_prepass_vs, depth_prepass_fs});
 
         auto lights_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "debug/lights.vert").contents;
         auto lights_fs_source = glsp::preprocess_file(vgl::file::shaders_path / "debug/lights.frag").contents;
         auto lights_debug_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, lights_vs_source);
         auto lights_debug_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, lights_fs_source);
-        lights_debug = vgl::gl::create_program({ lights_debug_vs, lights_debug_fs });
+        lights_debug = vgl::gl::create_program({lights_debug_vs, lights_debug_fs});
 
         auto aabb_debug_vs_source = glsp::preprocess_file(vgl::file::shaders_path / "debug/bb.vert").contents;
         auto aabb_debug_gs_source = glsp::preprocess_file(vgl::file::shaders_path / "debug/bb.geom").contents;
@@ -192,7 +194,7 @@ int main() {
         auto aabb_debug_vs = vgl::gl::create_shader(GL_VERTEX_SHADER, aabb_debug_vs_source);
         auto aabb_debug_gs = vgl::gl::create_shader(GL_GEOMETRY_SHADER, aabb_debug_gs_source);
         auto aabb_debug_fs = vgl::gl::create_shader(GL_FRAGMENT_SHADER, aabb_debug_fs_source);
-        aabb_debug = vgl::gl::create_program({ aabb_debug_vs, aabb_debug_gs, aabb_debug_fs });
+        aabb_debug = vgl::gl::create_program({aabb_debug_vs, aabb_debug_gs, aabb_debug_fs});
     };
     reload_shaders();
 
@@ -200,13 +202,13 @@ int main() {
     g_buffer_one.init(config.fb_res);
 
     window.cbs.window_size["resize"] = [&](GLFWwindow*, int x, int y) {
-        w_res.x = x;
-        w_res.y = y;
+        w_res.x() = x;
+        w_res.y() = y;
     };
     window.cbs.framebuffer_size["resize"] = [&](GLFWwindow*, int x, int y) {
-        if (x > 0 && y > 0 && (x != config.fb_res.x || y != config.fb_res.y)) {
-            config.fb_res.x = x;
-            config.fb_res.y = y;
+        if (x > 0 && y > 0 && (x != config.fb_res.x() || y != config.fb_res.y())) {
+            config.fb_res.x() = x;
+            config.fb_res.y() = y;
             g_buffer_one.init(config.fb_res);
             glViewport(0, 0, x, y);
             cam.change_aspect_ratio(x / static_cast<float>(y));
@@ -229,21 +231,18 @@ int main() {
 
     auto cube_vao = vgl::gl::create_vertex_array();
     auto cube_buffer = vgl::gl::create_buffer(vgl::geo::unit_cube);
-    glVertexArrayVertexBuffer(cube_vao, 0, cube_buffer, 0, sizeof(glm::vec3));
+    glVertexArrayVertexBuffer(cube_vao, 0, cube_buffer, 0, sizeof(Eigen::Vector3f));
     glEnableVertexArrayAttrib(cube_vao, 0);
     glVertexArrayAttribFormat(cube_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
     glVertexArrayAttribBinding(cube_vao, 0, 0);
 
     auto cubemap_config_ssbo = vgl::gl::create_buffer(config.cm_conf, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, cubemap_config_ssbo);
-
     vgl::gl::gltexture cubemap_texture;
 
     std::vector<vgl::gl::gltexture> textures;
-
     auto lights_ssbo = vgl::gl::create_buffer(config.lights, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lights_ssbo);
-
     auto screen_vao = vgl::gl::create_vertex_array();
 
     using high_res_clock = std::chrono::high_resolution_clock;
@@ -308,7 +307,7 @@ int main() {
                     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, bounds_buffer);
                     model_vao = vgl::gl::create_vertex_array();
                     glVertexArrayVertexBuffer(model_vao, 0, model_vbo, 0,
-                        static_cast<int>(vgl::sizeof_value_type(scene.vertices)));
+                                              static_cast<int>(vgl::sizeof_value_type(scene.vertices)));
                     glVertexArrayElementBuffer(model_vao, indices_buffer);
                     glEnableVertexArrayAttrib(model_vao, 0);
                     glEnableVertexArrayAttrib(model_vao, 1);
@@ -319,7 +318,7 @@ int main() {
                     glVertexArrayAttribBinding(model_vao, 0, 0);
                     glVertexArrayAttribBinding(model_vao, 1, 0);
                     glVertexArrayAttribBinding(model_vao, 2, 0);
-                    cam.move_speed = sqrt(length((scene.scene_bounds.min - scene.scene_bounds.max) / 2.0f));
+                    cam_controller.set_move_speed(scene.scene_bounds.center().norm());
                 }
             }
             if (ImGui::BeginMenu("Cubemap")) {
@@ -332,22 +331,17 @@ int main() {
                                 auto filename = f.filename().stem().string();
                                 auto face_name = filename.substr(filename.size() - 2, filename.size());
                                 if (face_name == "px") {
-                                    face_textures.at(0) = vgl::Image_info{ f, 4 };
-                                }
-                                else if (face_name == "nx") {
-                                    face_textures.at(1) = vgl::Image_info{ f, 4 };
-                                }
-                                else if (face_name == "py") {
-                                    face_textures.at(2) = vgl::Image_info{ f, 4 };
-                                }
-                                else if (face_name == "ny") {
-                                    face_textures.at(3) = vgl::Image_info{ f, 4 };
-                                }
-                                else if (face_name == "pz") {
-                                    face_textures.at(4) = vgl::Image_info{ f, 4 };
-                                }
-                                else if (face_name == "nz") {
-                                    face_textures.at(5) = vgl::Image_info{ f, 4 };
+                                    face_textures.at(0) = vgl::Image_info{f, 4};
+                                } else if (face_name == "nx") {
+                                    face_textures.at(1) = vgl::Image_info{f, 4};
+                                } else if (face_name == "py") {
+                                    face_textures.at(2) = vgl::Image_info{f, 4};
+                                } else if (face_name == "ny") {
+                                    face_textures.at(3) = vgl::Image_info{f, 4};
+                                } else if (face_name == "pz") {
+                                    face_textures.at(4) = vgl::Image_info{f, 4};
+                                } else if (face_name == "nz") {
+                                    face_textures.at(5) = vgl::Image_info{f, 4};
                                 }
                             }
                             bool all_faces_present = true;
@@ -374,7 +368,8 @@ int main() {
                                 glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
                                 config.cm_conf.hdr = image_type == vgl::image_type::hdr;
                                 vgl::gl::update_uniform(cubemap, 0, vgl::gl::get_texture_handle(cubemap_texture));
-                                cubemap_config_ssbo = vgl::gl::create_buffer(config.cm_conf, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
+                                cubemap_config_ssbo =
+                                    vgl::gl::create_buffer(config.cm_conf, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
                                 glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, cubemap_config_ssbo);
                                 config.cubemap_equirectangular = false;
                             }
@@ -384,7 +379,7 @@ int main() {
                 if (ImGui::MenuItem("Load equirectangular map as cubemap")) {
                     auto file = vgl::file::open_file_dialog(vgl::file::resources_path / "images", "jpg,png,hdr");
                     if (file) {
-                        vgl::Image_info tex_info{ file.value(), 4 };
+                        vgl::Image_info tex_info{file.value(), 4};
                         auto tex_data = vgl::file::load_image(tex_info);
                         auto tex_format = vgl::gl::derive_internal_format(tex_data);
                         auto desc = vgl::img::get_image_desc(tex_data);
@@ -399,7 +394,8 @@ int main() {
                         glTextureParameteri(cubemap_texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
                         config.cm_conf.hdr = image_type == vgl::image_type::hdr;
                         vgl::gl::update_uniform(cubemap_equirect, 0, vgl::gl::get_texture_handle(cubemap_texture));
-                        cubemap_config_ssbo = vgl::gl::create_buffer(config.cm_conf, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
+                        cubemap_config_ssbo =
+                            vgl::gl::create_buffer(config.cm_conf, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
                         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, cubemap_config_ssbo);
                         config.cubemap_equirectangular = true;
                     }
@@ -419,7 +415,7 @@ int main() {
                     std::array<int, 3> wgs;
                     glGetProgramiv(frustum_culling, GL_COMPUTE_WORK_GROUP_SIZE, wgs.data());
                     vgl::gl::update_uniform(frustum_culling, 0, true);
-                    glDispatchCompute(glm::ceil(scene.objects.size() / static_cast<float>(wgs.at(0))), 1, 1);
+                    glDispatchCompute(std::ceil(scene.objects.size() / static_cast<float>(wgs.at(0))), 1, 1);
                     vgl::gl::update_uniform(frustum_culling, 0, false);
                 }
             }
@@ -429,9 +425,9 @@ int main() {
             }
             if (ImGui::CollapsingHeader("Cubemap settings")) {
                 if (ImGui::Checkbox("Activate cubemap", &config.cubemap_active)) {
-
                 }
-                ImGui::Combo("Tonemapping", &config.cm_conf.tone_mapping, "Linear\0Reinhard\0Hejl and Burgess-Dawson\0Uncharted 2\0\0");
+                ImGui::Combo("Tonemapping", &config.cm_conf.tone_mapping,
+                             "Linear\0Reinhard\0Hejl and Burgess-Dawson\0Uncharted 2\0\0");
                 ImGui::DragFloat("Gamma", &config.cm_conf.gamma, 0.01f);
                 ImGui::DragFloat("Exposure", &config.cm_conf.exposure, 0.01f);
                 if (config.cubemap_active) {
@@ -448,25 +444,26 @@ int main() {
                 for (auto light_it = config.lights.begin(); light_it != config.lights.end();) {
                     if (ImGui::CollapsingHeader(("Light " + std::to_string(i)).c_str())) {
                         ImGui::Combo(("Type##light" + std::to_string(i)).c_str(), &light_it->type,
-                            "Ambient\0Point\0Directional\0Spotlight\0\0");
+                                     "Ambient\0Point\0Directional\0Spotlight\0\0");
                         ImGui::Text("Type: %d", light_it->type);
-                        ImGui::ColorEdit3(("Color##light" + std::to_string(i)).c_str(),
-                            glm::value_ptr(light_it->color), ImGuiColorEditFlags_Float);
-                        ImGui::DragFloat(("Brightness##light" + std::to_string(i)).c_str(),
-                            &light_it->color.a, 0.1f, 0.0f, 100.0f);
+                        ImGui::ColorEdit3(("Color##light" + std::to_string(i)).c_str(), light_it->color.data(),
+                                          ImGuiColorEditFlags_Float);
+                        ImGui::DragFloat(("Brightness##light" + std::to_string(i)).c_str(), &light_it->color.w(), 0.1f,
+                                         0.0f, 100.0f);
                         ImGui::DragFloat3(("Attenuation##light" + std::to_string(i)).c_str(),
-                            reinterpret_cast<float*>(&light_it->attenuation), 0.0001f, 0.0f, 100.0f, "%.5f");
+                                          reinterpret_cast<float*>(&light_it->attenuation), 0.0001f, 0.0f, 100.0f,
+                                          "%.5f");
                         if (light_it->type == 1 || light_it->type == 3) {
-                            ImGui::DragFloat3(("Position##light" + std::to_string(i)).c_str(),
-                                glm::value_ptr(light_it->pos), 0.01f);
+                            ImGui::DragFloat3(("Position##light" + std::to_string(i)).c_str(), light_it->pos.data(),
+                                              0.01f);
                         }
                         if (light_it->type == 2 || light_it->type == 3) {
-                            ImGui::DragFloat3(("Direction##light" + std::to_string(i)).c_str(),
-                                glm::value_ptr(light_it->dir), 0.01f, -1.0f, 1.0f);
+                            ImGui::DragFloat3(("Direction##light" + std::to_string(i)).c_str(), light_it->dir.data(),
+                                              0.01f, -1.0f, 1.0f);
                         }
                         if (light_it->type == 3) {
-                            ImGui::DragFloat(("Cutoff##light" + std::to_string(i)).c_str(),
-                                &light_it->outer_cutoff, 0.01f, 0.0f, glm::pi<float>());
+                            ImGui::DragFloat(("Cutoff##light" + std::to_string(i)).c_str(), &light_it->outer_cutoff,
+                                             0.01f, 0.0f, math::pi<float>);
                         }
                         if (ImGui::Button(("Delete##light" + std::to_string(i)).c_str())) {
                             light_it = config.lights.erase(light_it);
@@ -490,18 +487,11 @@ int main() {
             config.lights_added_or_removed = false;
         }
         if (config.mesh_loaded) {
+            cam_controller.update_camera(cam, dt);
+            vgl::gl::update_full_buffer(cam_ssbo, cam.get_cam_data());
             vgl::gl::update_full_buffer(lights_ssbo, config.lights);
-            if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused()
-                && !ImGui::IsAnyItemActive()) {
-                glm::vec3 dir(static_cast<float>(window.key[GLFW_KEY_D]) - static_cast<float>(window.key[GLFW_KEY_A]),
-                    static_cast<float>(window.key[GLFW_KEY_E]) - static_cast<float>(window.key[GLFW_KEY_Q]),
-                    static_cast<float>(window.key[GLFW_KEY_S]) - static_cast<float>(window.key[GLFW_KEY_W]));
-                if (dot(dir, dir) != 0.0f) {
-                    cam.move(glm::normalize(dir), dt);
-                }
-                if (window.mouse[GLFW_MOUSE_BUTTON_LEFT]) {
-                    cam.rotate(glm::radians(glm::vec2(window.cursor_delta)), dt);
-                }
+            if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused() &&
+                !ImGui::IsAnyItemActive()) {
                 if (window.key[GLFW_KEY_P]) {
                     cam.reset();
                 }
@@ -509,20 +499,18 @@ int main() {
                     reload_shaders();
                     if (config.cubemap_equirectangular) {
                         vgl::gl::update_uniform(cubemap_equirect, 0, vgl::gl::get_texture_handle(cubemap_texture));
-                    }
-                    else {
+                    } else {
                         vgl::gl::update_uniform(cubemap, 0, vgl::gl::get_texture_handle(cubemap_texture));
                     }
                 }
-                vgl::gl::update_full_buffer(cam_ssbo, cam.get_cam_data());
             }
-            glViewport(0, 0, w_res.x, w_res.y);
+            glViewport(0, 0, w_res.x(), w_res.y());
             if (config.activate_frustum_culling) {
                 glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, draw_indirect_buffer);
                 glUseProgram(frustum_culling);
                 std::array<int, 3> wgs;
                 glGetProgramiv(frustum_culling, GL_COMPUTE_WORK_GROUP_SIZE, wgs.data());
-                glDispatchCompute(1 + glm::ceil(scene.objects.size() / static_cast<float>(wgs.at(0))), 1, 1);
+                glDispatchCompute(1 + std::ceil(scene.objects.size() / static_cast<float>(wgs.at(0))), 1, 1);
             }
             glEnable(GL_CULL_FACE);
             glCullFace(GL_BACK);
@@ -532,12 +520,12 @@ int main() {
             glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_indirect_buffer);
             glUseProgram(depth_prepass);
             glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
-                static_cast<unsigned int>(scene.objects.size()), 0);
+                                        static_cast<unsigned int>(scene.objects.size()), 0);
             glDepthFunc(GL_EQUAL);
             glBindVertexArray(model_vao);
             glUseProgram(deferred_prepass);
             glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr,
-                static_cast<unsigned int>(scene.objects.size()), 0);
+                                        static_cast<unsigned int>(scene.objects.size()), 0);
             glDepthFunc(GL_LESS);
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glDisable(GL_DEPTH_TEST);
@@ -546,8 +534,7 @@ int main() {
                 glDepthFunc(GL_LEQUAL);
                 if (config.cubemap_equirectangular) {
                     glUseProgram(cubemap_equirect);
-                }
-                else {
+                } else {
                     glUseProgram(cubemap);
                 }
                 glBindVertexArray(cube_vao);
@@ -562,15 +549,15 @@ int main() {
             glDrawArraysInstancedBaseInstance(GL_TRIANGLES, 0, 3, 1, 0);
             glBindFramebuffer(GL_READ_FRAMEBUFFER, g_buffer_one.fbo);
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
-            glBlitFramebuffer(0, 0, config.fb_res.x, config.fb_res.y, 0, 0, config.fb_res.x, config.fb_res.y,
-                GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+            glBlitFramebuffer(0, 0, config.fb_res.x(), config.fb_res.y(), 0, 0, config.fb_res.x(), config.fb_res.y(),
+                              GL_DEPTH_BUFFER_BIT, GL_NEAREST);
             glEnable(GL_DEPTH_TEST);
             glUseProgram(lights_debug);
             glBindVertexArray(cube_vao);
             glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 14, static_cast<int>(config.lights.size()), 0);
             if (config.preview_deferred) {
                 glDisable(GL_DEPTH_TEST);
-                auto ar = w_res.x / static_cast<float>(w_res.y);
+                auto ar = w_res.x() / static_cast<float>(w_res.y());
                 int preview_size = 400;
                 glViewport(0, 0, preview_size * ar, preview_size);
                 glBindVertexArray(screen_vao);
@@ -595,12 +582,11 @@ int main() {
         }
         gui.render();
         window.swap_buffers();
-        if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused()
-            && !ImGui::IsAnyItemActive()) {
+        if (!ImGui::IsAnyItemHovered() && !ImGui::IsAnyWindowHovered() && !ImGui::IsAnyItemFocused() &&
+            !ImGui::IsAnyItemActive()) {
             if (window.mouse[GLFW_MOUSE_BUTTON_LEFT]) {
                 glfwSetInputMode(window.get(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            }
-            else {
+            } else {
                 glfwSetInputMode(window.get(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
             }
         }

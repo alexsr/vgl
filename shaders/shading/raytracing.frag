@@ -98,7 +98,7 @@ void main() {
         ivec3 idx = triangles[i].idx;
         float u = 0;
         float v = 0;
-        bool intersect = rayTriangleIntersect(ray(normalize(_ray_dir), cam.position), vertices[idx.x], vertices[idx.y], vertices[idx.z], t, u, v);
+        bool intersect = rayTriangleIntersect(ray(normalize(_ray_dir), cam.position.xyz), vertices[idx.x], vertices[idx.y], vertices[idx.z], t, u, v);
         if (intersect) {
             if (t_min > t) {
                 t_min = min(t_min, t);
@@ -109,7 +109,7 @@ void main() {
     }
     _color.rgb = vec3(0);
     if (hit != -1) {
-        vec3 p = cam.position + t_min * normalize(_ray_dir);
+        vec3 p = cam.position.xyz + t_min * normalize(_ray_dir);
         vec3 shadow_p = p + n * 0.0001;
         vec3 v = -normalize(_ray_dir);
         float shininess = 10.0f;

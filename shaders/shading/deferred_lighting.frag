@@ -35,7 +35,7 @@ void main() {
     vec4 specular_temp = texture(_specular, _uv);
     vec3 specular = specular_temp.rgb;
     float shininess = specular_temp.a;
-    vec3 v = normalize(cam.position - position);
+    vec3 v = normalize(cam.position.xyz - position);
     for (int i = 0; i < lights.length(); i++) {
         vec3 pos_to_light = lights[i].pos.xyz - position;
         float dist2 = dot(pos_to_light, pos_to_light);

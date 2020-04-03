@@ -9,7 +9,7 @@ namespace vgl
     };
 
     template <typename T>
-    struct is_container<T, std::void_t<decltype(std::declval<T>().data()), decltype(std::declval<T>().size())>>
+    struct is_container<T, std::void_t<decltype(std::begin(std::declval<T>())), decltype(std::end(std::declval<T>()))>>
         : std::true_type {
     };
 

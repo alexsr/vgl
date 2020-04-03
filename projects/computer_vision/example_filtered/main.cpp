@@ -1,12 +1,12 @@
-#include "glm/glm.hpp"
+#include <Eigen/Core>
 #include "vgl/file/file.hpp"
 #include "vgl/file/image_file.hpp"
 #include "vgl/gpu_api/gl/shader.hpp"
 #include "vgl/gpu_api/gl/vao.hpp"
 #include "vgl/gpu_api/gl/texture.hpp"
 #include "vgl/gpu_api/gl/framebuffer.hpp"
-#include "vgl/control/window.hpp"
-#include "vgl/control/gui.hpp"
+#include "vgl/core/window.hpp"
+#include "vgl/core/gui.hpp"
 #include <glsp/glsp.hpp>
 
 // enable optimus!
@@ -15,11 +15,11 @@ extern "C" {
 }
 
 int main() {
-    auto w_res = glm::ivec2(1600, 900);
-    vgl::Window window(w_res.x, w_res.y, "Hello");
+    auto w_res = Eigen::Vector2i(1600, 900);
+    vgl::Window window(w_res.x(), w_res.y(), "Hello");
     window.enable_gl();
     vgl::ui::Gui gui(window);
-    glViewport(0, 0, w_res.x, w_res.y);
+    glViewport(0, 0, w_res.x(), w_res.y());
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     auto vertex_shader_source = glsp::preprocess_file(vgl::file::shaders_path / "minimal/texture.vert").contents;
@@ -35,17 +35,16 @@ int main() {
     glTextureParameteri(tex_id, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
     glTextureParameteri(tex_id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
 
-    glm::ivec2 image_size{};
+    Eigen::Vector2i image_size{};
     auto image_path = (vgl::file::resources_path / "images/clifton-house-project.jpg").string();
-    stbi_info(image_path.c_str(), &image_size.x, &image_size.y, nullptr);
-
+    stbi_info(image_path.c_str(), &image_size.x(), &image_size.y(), nullptr);
     stbi_set_flip_vertically_on_load(1);
     auto image_channels = 4;
-    auto ptr = std::unique_ptr<stbi_uc>(stbi_load(image_path.c_str(), &image_size.x, &image_size.y,
-                                                  &image_channels, image_channels));
+    auto ptr = std::unique_ptr<stbi_uc>(
+        stbi_load(image_path.c_str(), &image_size.x(), &image_size.y(), &image_channels, image_channels));
 
-    glTextureStorage2D(tex_id, 1, GL_RGBA8, image_size.x, image_size.y);
-    glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x, image_size.y, GL_RGBA, GL_UNSIGNED_BYTE, ptr.get());
+    glTextureStorage2D(tex_id, 1, GL_RGBA8, image_size.x(), image_size.y());
+    glTextureSubImage2D(tex_id, 0, 0, 0, image_size.x(), image_size.y(), GL_RGBA, GL_UNSIGNED_BYTE, ptr.get());
     glBindTextureUnit(0, tex_id);
     glUseProgram(program);
 

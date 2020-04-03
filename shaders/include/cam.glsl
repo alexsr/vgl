@@ -3,9 +3,9 @@
 
 struct Camera {
     mat4 view;
-    vec3 position;
     mat4 proj;
     mat4 inv_vp;
+    vec4 position;
 };
 
 #endif // CAM_GLSL

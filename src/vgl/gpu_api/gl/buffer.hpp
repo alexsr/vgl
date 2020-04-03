@@ -2,7 +2,7 @@
 
 #include "handle.hpp"
 #include "vgl/utility/type_checking.hpp"
-#include "vgl/utility/size_functions.hpp"
+#include "vgl/utility/container_utils.hpp"
 
 namespace vgl::gl
 {

@@ -1,16 +1,18 @@
 #include "gui.hpp"
 #include "window.hpp"
 #include <utility>
+#include <string_view>
 #include "vgl/file/file_paths.hpp"
 #include "vgl/gpu_api/gl/texture.hpp"
 #include "vgl/gpu_api/gl/shader.hpp"
 #include "vgl/gpu_api/gl/buffer.hpp"
 #include "vgl/gpu_api/gl/vao.hpp"
 #include "vgl/file/image_file.hpp"
+#include "vgl/math/projection.hpp"
 #include <iconfont/IconsMaterialDesignIcons.h>
 
-namespace impl {
-    constexpr const char* imgui_vs = R"(#version 460
+namespace gui_detail {
+constexpr std::string_view imgui_vs = R"(#version 460
 layout (location = 0) uniform mat4 ProjMtx;
 in vec2 Position;
 in vec2 UV;
@@ -25,7 +27,7 @@ void main() {
     Frag_Color = Color;
     gl_Position = ProjMtx * vec4(Position.xy,0,1);
 })";
-    constexpr const char* imgui_fs = R"(#version 460
+constexpr std::string_view imgui_fs = R"(#version 460
 
 #extension GL_ARB_bindless_texture : require
 
@@ -39,10 +41,10 @@ layout (location = 1) uniform sampler2D tex;
 void main() {
     Out_Color = Frag_Color * texture(tex, Frag_UV.st);
 })";
-}
+} // namespace gui_detail
 
 vgl::ui::Gui::Gui(vgl::Window& window, float font_size, bool install_callbacks_flag) {
-    _window_ptr = window.get();
+    window_ptr_ = window.get();
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
@@ -56,9 +58,9 @@ vgl::ui::Gui::Gui(vgl::Window& window, float font_size, bool install_callbacks_f
     ImGui::StyleColorsVS();
 
     auto& io = ImGui::GetIO();
-    auto vs = gl::create_shader(GL_VERTEX_SHADER, impl::imgui_vs, strlen(impl::imgui_vs));
-    auto fs = gl::create_shader(GL_FRAGMENT_SHADER, impl::imgui_fs, strlen(impl::imgui_fs));
-    _program = gl::create_program({ vs, fs });
+    auto vs = gl::create_shader(GL_VERTEX_SHADER, gui_detail::imgui_vs.data());
+    auto fs = gl::create_shader(GL_FRAGMENT_SHADER, gui_detail::imgui_fs.data());
+    program_ = gl::create_program({vs, fs});
     const auto window_size = window.size();
     const auto framebuffer_size = window.framebuffer_size();
 
@@ -93,14 +95,14 @@ vgl::ui::Gui::Gui(vgl::Window& window, float font_size, bool install_callbacks_f
     io.KeyMap[ImGuiKey_Z] = GLFW_KEY_Z;
 
     // Cursor setup
-    _mouse_cursors[ImGuiMouseCursor_Arrow] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
-    _mouse_cursors[ImGuiMouseCursor_TextInput] = glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
-    _mouse_cursors[ImGuiMouseCursor_ResizeAll] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
-    _mouse_cursors[ImGuiMouseCursor_ResizeNS] = glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
-    _mouse_cursors[ImGuiMouseCursor_ResizeEW] = glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
-    _mouse_cursors[ImGuiMouseCursor_ResizeNESW] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
-    _mouse_cursors[ImGuiMouseCursor_ResizeNWSE] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
-    _mouse_cursors[ImGuiMouseCursor_Hand] = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
+    mouse_cursors_[ImGuiMouseCursor_Arrow] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+    mouse_cursors_[ImGuiMouseCursor_TextInput] = glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+    mouse_cursors_[ImGuiMouseCursor_ResizeAll] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+    mouse_cursors_[ImGuiMouseCursor_ResizeNS] = glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
+    mouse_cursors_[ImGuiMouseCursor_ResizeEW] = glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
+    mouse_cursors_[ImGuiMouseCursor_ResizeNESW] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+    mouse_cursors_[ImGuiMouseCursor_ResizeNWSE] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+    mouse_cursors_[ImGuiMouseCursor_Hand] = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
 
     auto set_clipboard_string = [](void* u, const char* c) {
         glfwSetClipboardString(reinterpret_cast<GLFWwindow*>(u), c);
@@ -133,42 +135,40 @@ vgl::ui::Gui::Gui(vgl::Window& window, float font_size, bool install_callbacks_f
             io.AddInputCharacter(static_cast<unsigned short>(c));
         }
     };
-    window.cbs.cursor_pos["imgui"] = [](GLFWwindow * w, double x, double y) {
+    window.cbs.cursor_pos["imgui"] = [](GLFWwindow* w, double x, double y) {
         if (glfwGetWindowAttrib(w, GLFW_FOCUSED) == GLFW_TRUE) {
             auto& io = ImGui::GetIO();
             if (io.WantSetMousePos) {
                 glfwSetCursorPos(w, io.MousePos.x, io.MousePos.y);
-            }
-            else {
+            } else {
                 io.MousePos = ImVec2(static_cast<float>(x), static_cast<float>(y));
             }
         }
     };
 
-    _vao_handle = vgl::gl::create_vertex_array();
-    _vbo_handle = vgl::gl::create_buffer();
-    _ebo_handle = vgl::gl::create_buffer();
-    glGenBuffers(1, &_vbo_handle);
-    glGenBuffers(1, &_ebo_handle);
-    glGenVertexArrays(1, &_vao_handle);
-    glBindVertexArray(_vao_handle);
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo_handle);
+    vao_handle_ = vgl::gl::create_vertex_array();
+    vbo_handle_ = vgl::gl::create_buffer();
+    ebo_handle_ = vgl::gl::create_buffer();
+    glGenBuffers(1, &vbo_handle_);
+    glGenBuffers(1, &ebo_handle_);
+    glGenVertexArrays(1, &vao_handle_);
+    glBindVertexArray(vao_handle_);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_handle_);
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert),
-        reinterpret_cast<GLvoid*>(IM_OFFSETOF(ImDrawVert, pos)));
+                          reinterpret_cast<GLvoid*>(IM_OFFSETOF(ImDrawVert, pos)));
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert),
-        reinterpret_cast<GLvoid*>(IM_OFFSETOF(ImDrawVert, uv)));
+                          reinterpret_cast<GLvoid*>(IM_OFFSETOF(ImDrawVert, uv)));
     glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert),
-        reinterpret_cast<GLvoid*>(IM_OFFSETOF(ImDrawVert, col)));
-
+                          reinterpret_cast<GLvoid*>(IM_OFFSETOF(ImDrawVert, col)));
 }
 vgl::ui::Gui::~Gui() {
-    for (auto& cursor : _mouse_cursors) {
+    for (auto& cursor : mouse_cursors_) {
         glfwDestroyCursor(cursor);
     }
-    if (_font_texture.id() != 0) {
+    if (font_texture_.id() != 0) {
         auto& io = ImGui::GetIO();
         io.Fonts = nullptr;
     }
@@ -178,34 +178,36 @@ vgl::ui::Gui::~Gui() {
 void vgl::ui::Gui::start_frame() {
     auto& io = ImGui::GetIO();
     IM_ASSERT(io.Fonts->IsBuilt());
-    // Font atlas needs to be built, call renderer _NewFrame() function e.g. ImGui_ImplOpenGL3_NewFrame() 
+    // Font atlas needs to be built, call renderer _NewFrame() function e.g. ImGui_ImplOpenGL3_NewFrame()
 
-        // Setup display size
-    glm::ivec2 size;
-    glfwGetWindowSize(_window_ptr, &size.x, &size.y);
-    const auto size_x = static_cast<float>(size.x);
-    const auto size_y = static_cast<float>(size.y);
-    glm::ivec2 framebuffer_size;
-    glfwGetFramebufferSize(_window_ptr, &framebuffer_size.x, &framebuffer_size.y);
-    io.DisplaySize = ImVec2(size_x, size_y);
-    io.DisplayFramebufferScale = ImVec2(size_x > 0 ? static_cast<float>(framebuffer_size.x) / size_x : 0,
-        size_y > 0 ? static_cast<float>(framebuffer_size.y) / size_y : 0);
+    // Setup display size
+    int size_x, size_y;
+    glfwGetWindowSize(window_ptr_, &size_x, &size_y);
+    Eigen::Vector2f size(size_x, size_y);
+
+    Eigen::Vector2i framebuffer_size;
+    glfwGetFramebufferSize(window_ptr_, &framebuffer_size.x(), &framebuffer_size.y());
+    io.DisplaySize = ImVec2(size.x(), size.y());
+    io.DisplayFramebufferScale = ImVec2(size.x() > 0 ? static_cast<float>(framebuffer_size.x()) / size.x() : 0,
+                                        size.y() > 0 ? static_cast<float>(framebuffer_size.y()) / size.y() : 0);
     // Setup time step
     const auto current_time = glfwGetTime();
-    io.DeltaTime = _time > 0.0 ? static_cast<float>(current_time - _time) : static_cast<float>(1.0f / 60.0f);
-    _time = current_time;
+    io.DeltaTime = time_ > 0.0 ? static_cast<float>(current_time - time_) : static_cast<float>(1.0f / 60.0f);
+    time_ = current_time;
 
-    if (!(io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) && glfwGetInputMode(_window_ptr, GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
+    if (!(io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) &&
+        glfwGetInputMode(window_ptr_, GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
         const auto imgui_cursor = ImGui::GetMouseCursor();
         if (imgui_cursor == ImGuiMouseCursor_None || io.MouseDrawCursor) {
             // Hide OS mouse cursor if imgui is drawing it or if it wants no cursor
-            glfwSetInputMode(_window_ptr, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-        }
-        else {
+            glfwSetInputMode(window_ptr_, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+        } else {
             // Show OS mouse cursor
-            // FIXME-PLATFORM: Unfocused windows seems to fail changing the mouse cursor with GLFW 3.2, but 3.3 works here.
-            glfwSetCursor(_window_ptr, _mouse_cursors[imgui_cursor] ? _mouse_cursors[imgui_cursor] : _mouse_cursors[ImGuiMouseCursor_Arrow]);
-            glfwSetInputMode(_window_ptr, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            // FIXME-PLATFORM: Unfocused windows seems to fail changing the mouse cursor with GLFW 3.2, but 3.3 works
+            // here.
+            glfwSetCursor(window_ptr_, mouse_cursors_[imgui_cursor] ? mouse_cursors_[imgui_cursor]
+                                                                    : mouse_cursors_[ImGuiMouseCursor_Arrow]);
+            glfwSetInputMode(window_ptr_, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         }
     }
 
@@ -219,7 +221,7 @@ void vgl::ui::Gui::start_frame() {
 
 void vgl::ui::Gui::render() {
     ImGui::Render();
-    glfwMakeContextCurrent(_window_ptr);
+    glfwMakeContextCurrent(window_ptr_);
 
     auto& io = ImGui::GetIO();
     auto draw_data = ImGui::GetDrawData();
@@ -273,51 +275,42 @@ void vgl::ui::Gui::render() {
     const auto r = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
     const auto t = draw_data->DisplayPos.y;
     const auto b = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
-    const glm::mat4 ortho_projection =
-    {
-        {2.0f / (r - l), 0.0f, 0.0f, 0.0f},
-        {0.0f, 2.0f / (t - b), 0.0f, 0.0f},
-        {0.0f, 0.0f, -1.0f, 0.0f},
-        {(r + l) / (l - r), (t + b) / (b - t), 0.0f, 1.0f},
-    };
-    glUseProgram(_program);
-    gl::update_uniform(_program, 0, ortho_projection);
-    gl::update_uniform(_program, 1, 0);
-    glBindVertexArray(_vao_handle);
+    Eigen::Matrix4f ortho_projection = vgl::orthographic_projection<float>(l, r, t, b, -1.0, 1.0);
+    glUseProgram(program_);
+    gl::update_uniform(program_, 0, ortho_projection);
+    gl::update_uniform(program_, 1, 0);
+    glBindVertexArray(vao_handle_);
     // Draw
     const auto pos = draw_data->DisplayPos;
     for (int n = 0; n < draw_data->CmdListsCount; n++) {
         const ImDrawList* cmd_list = draw_data->CmdLists[n];
         const ImDrawIdx* idx_buffer_offset = nullptr;
 
-        glBindBuffer(GL_ARRAY_BUFFER, _vbo_handle);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo_handle_);
         glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(cmd_list->VtxBuffer.Size) * sizeof(ImDrawVert),
-            static_cast<const GLvoid*>(cmd_list->VtxBuffer.Data), GL_STREAM_DRAW);
+                     static_cast<const GLvoid*>(cmd_list->VtxBuffer.Data), GL_STREAM_DRAW);
 
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo_handle);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_handle_);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(cmd_list->IdxBuffer.Size) * sizeof(ImDrawIdx),
-            static_cast<const GLvoid*>(cmd_list->IdxBuffer.Data), GL_STREAM_DRAW);
+                     static_cast<const GLvoid*>(cmd_list->IdxBuffer.Data), GL_STREAM_DRAW);
 
         for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++) {
             auto pcmd = &cmd_list->CmdBuffer[cmd_i];
             if (pcmd->UserCallback) {
                 // User callback (registered via ImDrawList::AddCallback)
                 pcmd->UserCallback(cmd_list, pcmd);
-            }
-            else {
+            } else {
                 const auto clip_rect = ImVec4(pcmd->ClipRect.x - pos.x, pcmd->ClipRect.y - pos.y,
-                    pcmd->ClipRect.z - pos.x,
-                    pcmd->ClipRect.w - pos.y);
+                                              pcmd->ClipRect.z - pos.x, pcmd->ClipRect.w - pos.y);
                 if (clip_rect.x < fb_width && clip_rect.y < fb_height && clip_rect.z >= 0.0f && clip_rect.w >= 0.0f) {
                     // Apply scissor/clipping rectangle
                     glScissor(static_cast<int>(clip_rect.x), static_cast<int>(fb_height - clip_rect.w),
-                        static_cast<int>(clip_rect.z - clip_rect.x),
-                        static_cast<int>(clip_rect.w - clip_rect.y));
+                              static_cast<int>(clip_rect.z - clip_rect.x), static_cast<int>(clip_rect.w - clip_rect.y));
 
                     // Bind texture, Draw
                     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(reinterpret_cast<intptr_t>(pcmd->TextureId)));
                     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(pcmd->ElemCount),
-                        sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
+                                   sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
                 }
             }
             idx_buffer_offset += pcmd->ElemCount;
@@ -327,19 +320,26 @@ void vgl::ui::Gui::render() {
     // Restore modified GL state
     glBlendEquationSeparate(last_blend_equation_rgb, last_blend_equation_alpha);
     glBlendFuncSeparate(last_blend_src_rgb, last_blend_dst_rgb, last_blend_src_alpha, last_blend_dst_alpha);
-    if (last_enable_blend) glEnable(GL_BLEND);
-    else glDisable(GL_BLEND);
-    if (last_enable_cull_face) glEnable(GL_CULL_FACE);
-    else glDisable(GL_CULL_FACE);
-    if (last_enable_depth_test) glEnable(GL_DEPTH_TEST);
-    else glDisable(GL_DEPTH_TEST);
-    if (last_enable_scissor_test) glEnable(GL_SCISSOR_TEST);
-    else glDisable(GL_SCISSOR_TEST);
+    if (last_enable_blend)
+        glEnable(GL_BLEND);
+    else
+        glDisable(GL_BLEND);
+    if (last_enable_cull_face)
+        glEnable(GL_CULL_FACE);
+    else
+        glDisable(GL_CULL_FACE);
+    if (last_enable_depth_test)
+        glEnable(GL_DEPTH_TEST);
+    else
+        glDisable(GL_DEPTH_TEST);
+    if (last_enable_scissor_test)
+        glEnable(GL_SCISSOR_TEST);
+    else
+        glDisable(GL_SCISSOR_TEST);
     glScissor(last_scissor_box[0], last_scissor_box[1], static_cast<GLsizei>(last_scissor_box[2]),
-        static_cast<GLsizei>(last_scissor_box[3]));
+              static_cast<GLsizei>(last_scissor_box[3]));
     glPolygonMode(GL_FRONT_AND_BACK, static_cast<GLenum>(last_polygon_mode[0]));
     glViewport(previous_viewport[0], previous_viewport[1], previous_viewport[2], previous_viewport[3]);
-
 }
 
 void vgl::ui::Gui::setup_fonts(float font_size) {
@@ -348,34 +348,43 @@ void vgl::ui::Gui::setup_fonts(float font_size) {
     ImFontConfig config;
     config.OversampleH = 6;
     config.OversampleV = 3;
-    io.Fonts->AddFontFromFileTTF((file::resources_path / "fonts/OpenSans-Regular.ttf").string().c_str(), font_size, &config);
-    const std::array<ImWchar, 3> icons_range{ ICON_MIN_MDI, ICON_MAX_MDI, 0 };
+    io.Fonts->AddFontFromFileTTF((file::resources_path / "fonts/OpenSans-Regular.ttf").string().c_str(), font_size,
+                                 &config);
+    const std::array<ImWchar, 3> icons_range{ICON_MIN_MDI, ICON_MAX_MDI, 0};
     ImFontConfig icons_config;
     icons_config.MergeMode = true;
     icons_config.PixelSnapH = true;
     io.Fonts->AddFontFromFileTTF((file::resources_path / "fonts/" / FONT_ICON_FILE_NAME_MDI).string().c_str(),
-        font_size, &icons_config, icons_range.data());
+                                 font_size, &icons_config, icons_range.data());
     io.Fonts->Build();
     unsigned char* pixel_ptr;
     int width, height;
     io.Fonts->GetTexDataAsRGBA32(&pixel_ptr, &width, &height);
-    // Load as RGBA 32-bits (75% of the memory is wasted, but default font is so small) because it is more likely to be compatible with user's existing shaders. If your ImTextureId represent a higher-level concept than just a GL texture id, consider calling GetTexDataAsAlpha8() instead to save on GPU memory.
+    // Load as RGBA 32-bits (75% of the memory is wasted, but default font is so small) because it is more likely to be
+    // compatible with user's existing shaders. If your ImTextureId represent a higher-level concept than just a GL
+    // texture id, consider calling GetTexDataAsAlpha8() instead to save on GPU memory.
 
-    _font_texture = gl::create_texture(GL_TEXTURE_2D);
-    glTextureParameteri(_font_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTextureParameteri(_font_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTextureParameteri(_font_texture, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    glTextureParameteri(_font_texture, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-    glTextureStorage2D(_font_texture, 1, GL_RGBA8, width, height);
-    glTextureSubImage2D(_font_texture, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixel_ptr);
+    font_texture_ = gl::create_texture(GL_TEXTURE_2D);
+    glTextureParameteri(font_texture_, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(font_texture_, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(font_texture_, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+    glTextureParameteri(font_texture_, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+    glTextureStorage2D(font_texture_, 1, GL_RGBA8, width, height);
+    glTextureSubImage2D(font_texture_, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixel_ptr);
     stbi_image_free(pixel_ptr);
 
     // Store our identifier
-    io.Fonts->TexID = reinterpret_cast<ImTextureID>(static_cast<intptr_t>(_font_texture));
+    io.Fonts->TexID = reinterpret_cast<ImTextureID>(static_cast<intptr_t>(font_texture_));
 }
 
 void ImGui::StyleColorsVS(ImGuiStyle* dst) {
     const auto style = dst ? dst : &GetStyle();
+    style->WindowRounding = 0;
+    style->ScrollbarRounding = 0.0f;
+    style->ScrollbarSize = 20.0f;
+    style->DisplaySafeAreaPadding = ImVec2(0.0f, 0.0f);
+    style->DisplayWindowPadding = ImVec2(0.0f, 0.0f);
+    style->ChildBorderSize = 1.0f;
     ImVec4* colors = style->Colors;
 
     colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
@@ -399,9 +408,9 @@ void ImGui::StyleColorsVS(ImGuiStyle* dst) {
     colors[ImGuiCol_CheckMark] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
     colors[ImGuiCol_SliderGrab] = colors[ImGuiCol_TitleBgActive];
     colors[ImGuiCol_SliderGrabActive] = ImVec4(0.11f, 0.59f, 0.92f, 1.00f);
-    colors[ImGuiCol_Button] = colors[ImGuiCol_TitleBgActive]; //ImVec4(0.26f, 0.59f, 0.98f, 0.40f);
-    colors[ImGuiCol_ButtonHovered] = ImVec4(0.11f, 0.59f, 0.92f, 1.00f); //ImVec4(0.11f, 0.59f, 0.92f, 1.00f);
-    colors[ImGuiCol_ButtonActive] = colors[ImGuiCol_TitleBgActive]; //ImVec4(0.06f, 0.53f, 0.98f, 1.00f);
+    colors[ImGuiCol_Button] = colors[ImGuiCol_TitleBgActive];            // ImVec4(0.26f, 0.59f, 0.98f, 0.40f);
+    colors[ImGuiCol_ButtonHovered] = ImVec4(0.11f, 0.59f, 0.92f, 1.00f); // ImVec4(0.11f, 0.59f, 0.92f, 1.00f);
+    colors[ImGuiCol_ButtonActive] = colors[ImGuiCol_TitleBgActive];      // ImVec4(0.06f, 0.53f, 0.98f, 1.00f);
     colors[ImGuiCol_Header] = colors[ImGuiCol_TitleBg];
     colors[ImGuiCol_HeaderHovered] = ImVec4(0.24f, 0.24f, 0.25f, 1.00f);
     colors[ImGuiCol_HeaderActive] = colors[ImGuiCol_TitleBgActive];
@@ -413,7 +422,7 @@ void ImGui::StyleColorsVS(ImGuiStyle* dst) {
     colors[ImGuiCol_ResizeGripActive] = ImVec4(0.26f, 0.59f, 0.98f, 0.95f);
     colors[ImGuiCol_PlotLines] = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
     colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
-    colors[ImGuiCol_PlotHistogram] = colors[ImGuiCol_ButtonHovered];//ImVec4(0.53f, 0.19f, 0.78f, 1.00f);
+    colors[ImGuiCol_PlotHistogram] = colors[ImGuiCol_ButtonHovered]; // ImVec4(0.53f, 0.19f, 0.78f, 1.00f);
     colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.73f, 0.09f, 0.98f, 1.00f);
     colors[ImGuiCol_TextSelectedBg] = ImVec4(0.26f, 0.59f, 0.98f, 0.35f);
     colors[ImGuiCol_DragDropTarget] = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);

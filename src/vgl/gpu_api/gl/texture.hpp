@@ -22,6 +22,7 @@ namespace vgl::gl {
             return GL_UNSIGNED_BYTE;
         }
     }
+
     template <typename T>
     constexpr GLenum glify_type() {
         if constexpr (std::is_same_v<T, float>) {
@@ -144,46 +145,61 @@ namespace vgl::gl {
 
     template <typename T>
     bool set_texture_data_2d(const gltexture& texture, const std::vector<T>& data,
-        int width, int height, GLenum format, int level = 0) {
+        int width, int height, GLenum format, GLenum type = GL_INVALID_ENUM, int level = 0) {
+        if (type == GL_INVALID_ENUM) {
+            type = glify_type<T>();
+        }
         glTextureSubImage2D(texture, level, 0, 0, width, height,
-            format, glify_type<T>(), data.data());
+            format, type, data.data());
         return true;
     }
 
     template <typename T>
-    bool set_texture_data_2d(const gltexture& texture, const Image<T>& img, int level = 0) {
+    bool set_texture_data_2d(const gltexture& texture, const Image<T>& img, GLenum type = GL_INVALID_ENUM, int level = 0) {
         auto format = glify_channels(img.desc.channels);
+        if (type == GL_INVALID_ENUM) {
+            type = glify_type<T>();
+        }
         glTextureSubImage2D(texture, level, 0, 0, img.desc.width, img.desc.height,
-            format, glify_type<T>(), img.data.data());
+            format, type, img.data.data());
         return true;
     }
 
-    inline bool set_texture_data_2d(const gltexture& texture, const stbi_variant& image, int level = 0) {
+    inline bool set_texture_data_2d(const gltexture& texture, const stbi_variant& image, GLenum type = GL_INVALID_ENUM, int level = 0) {
         if (image.valueless_by_exception()) {
             return false;
         }
         else {
-            return std::visit([&texture, &level](auto&& img) {
-                return set_texture_data_2d(texture, img, level);
+            return std::visit([&texture, &type, &level](auto&& img) {
+                if (type == GL_INVALID_ENUM) {
+                    type = glify_type<std::remove_reference_t<decltype(img)>::value_type>();
+                }
+                return set_texture_data_2d(texture, img, type, level);
                 }, image);
         }
     }
 
     template <typename T>
-    bool set_cubemap_data(const gltexture& texture, const Image<T>& img, int face) {
+    bool set_cubemap_data(const gltexture& texture, const Image<T>& img, int face, GLenum type = GL_INVALID_ENUM) {
         auto format = glify_channels(img.desc.channels);
+        if (type == GL_INVALID_ENUM) {
+            type = glify_type<T>();
+        }
         glTextureSubImage3D(texture, 0, 0, 0, face, img.desc.width, img.desc.height, 1,
-            format, glify_type<T>(), img.data.data());
+            format, type, img.data.data());
         return true;
     }
 
-    inline bool set_cubemap_data(const gltexture& texture, const stbi_variant& image, int face) {
+    inline bool set_cubemap_data(const gltexture& texture, const stbi_variant& image, int face, GLenum type = GL_INVALID_ENUM) {
         if (image.valueless_by_exception()) {
             return false;
         }
         else {
-            return std::visit([&texture, &face](auto&& img) {
-                return set_cubemap_data(texture, img, face);
+            return std::visit([&texture, &type, &face](auto&& img) {
+                if (type == GL_INVALID_ENUM) {
+                    type = glify_type<std::remove_reference_t<decltype(img)>::value_type>();
+                }
+                return set_cubemap_data(texture, img, face, type);
                 }, image);
         }
     }

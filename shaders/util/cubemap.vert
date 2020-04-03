@@ -12,5 +12,5 @@ layout (std430, binding = CAM_BINDING) buffer cam_buffer {
 
 void main() {
     _uv = cube_pos;
-    gl_Position = (cam.proj * mat4(mat3(cam.view)) * vec4(cube_pos, 1.0)).xyww;
+    gl_Position = (cam.proj * mat4(mat3(cam.view)) * vec4(2.0 * cube_pos, 1.0)).xyww;
 }

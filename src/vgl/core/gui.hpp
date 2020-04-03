@@ -1,7 +1,7 @@
 #pragma once
 
 #include <array>
-#include <vgl/gpu_api/gl/handle.hpp>
+#include "vgl/gpu_api/gl/handle.hpp"
 #include <imgui/imgui.h>
 
 struct GLFWwindow;
@@ -22,14 +22,14 @@ namespace vgl {
             void render();
             void setup_fonts(float font_size);
         private:
-            gl::glprogram _program;
-            gl::gltexture _font_texture;
-            gl::glvertexarray _vao_handle{};
-            gl::glbuffer _vbo_handle;
-            gl::glbuffer _ebo_handle;
-            std::array<GLFWcursor*, ImGuiMouseCursor_COUNT> _mouse_cursors{};
-            double _time;
-            GLFWwindow* _window_ptr;
+            gl::glprogram program_;
+            gl::gltexture font_texture_;
+            gl::glvertexarray vao_handle_{};
+            gl::glbuffer vbo_handle_;
+            gl::glbuffer ebo_handle_;
+            std::array<GLFWcursor*, ImGuiMouseCursor_COUNT> mouse_cursors_{};
+            double time_;
+            GLFWwindow* window_ptr_;
         };
     }
 }

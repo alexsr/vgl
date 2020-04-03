@@ -1,3 +1,4 @@
+#include <Eigen/Core>
 #include "vgl/file/file.hpp"
 #include "vgl/file/image_file.hpp"
 #include "vgl/gpu_api/gl/shader.hpp"
@@ -5,17 +6,16 @@
 #include "vgl/gpu_api/gl/texture.hpp"
 #include "vgl/gpu_api/gl/framebuffer.hpp"
 #include "vgl/gpu_api/gl/buffer.hpp"
-#include "vgl/control/window.hpp"
-#include "vgl/control/gui.hpp"
+#include "vgl/core/window.hpp"
+#include "vgl/core/gui.hpp"
 #include <glsp/glsp.hpp>
 #include <random>
 
 // enable optimus!
 extern "C" {
-    _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001;
+_declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001;
 }
-
-float gen_random_float(const float lower = 0.0f, const float upper = 1.0f) {
+    float gen_random_float(const float lower = 0.0f, const float upper = 1.0f) {
     std::random_device rd;
     std::mt19937 eng(rd());
     const std::uniform_real_distribution<float> uni(lower, upper);
@@ -30,11 +30,11 @@ int gen_random_int(const int lower = 0, const int upper = 255) {
 }
 
 int main() {
-    auto w_res = glm::ivec2(1600, 900);
-    vgl::Window window(w_res.x, w_res.y, "Hello");
+    auto w_res = Eigen::Vector2i(1600, 900);
+    vgl::Window window(w_res.x(), w_res.y(), "Hello");
     window.enable_gl();
     vgl::ui::Gui gui(window);
-    glViewport(0, 0, w_res.x, w_res.y);
+    glViewport(0, 0, w_res.x(), w_res.y());
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     auto vertex_shader_source = glsp::preprocess_file(vgl::file::shaders_path / "minimal/texture.vert").contents;
@@ -82,16 +82,16 @@ int main() {
     int type = 0;
     int max_value = 360;
     int xor_value = gen_random_int();
-    glm::mat3 hill_mat(0.0f);
-    hill_mat[0][0] = gen_random_float();
-    hill_mat[0][1] = gen_random_float();
-    hill_mat[0][2] = gen_random_float();
-    hill_mat[1][0] = gen_random_float();
-    hill_mat[1][1] = gen_random_float();
-    hill_mat[1][2] = gen_random_float();
-    hill_mat[2][0] = gen_random_float();
-    hill_mat[2][1] = gen_random_float();
-    hill_mat[2][2] = gen_random_float();
+    Eigen::Matrix3f hill_mat(0.0f);
+    hill_mat(0, 0) = gen_random_float();
+    hill_mat(0, 1) = gen_random_float();
+    hill_mat(0, 2) = gen_random_float();
+    hill_mat(1, 0) = gen_random_float();
+    hill_mat(1, 1) = gen_random_float();
+    hill_mat(1, 2) = gen_random_float();
+    hill_mat(2, 0) = gen_random_float();
+    hill_mat(2, 1) = gen_random_float();
+    hill_mat(2, 2) = gen_random_float();
     while (!window.should_close()) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         gui.start_frame();
@@ -105,22 +105,22 @@ int main() {
             }
             else if (type == 1) {
                 max_value = 256;
-                rot_value = glm::min(rot_value, max_value);
+                rot_value = std::min(rot_value, max_value);
             }
             if (type <= 1) {
                 ImGui::SliderInt("Rot x", &rot_value, 0, max_value);
             }
             else if (type == 2) {
                 if (ImGui::Button("New random hill matrix")) {
-                    hill_mat[0][0] = gen_random_float();
-                    hill_mat[0][1] = gen_random_float();
-                    hill_mat[0][2] = gen_random_float();
-                    hill_mat[1][0] = gen_random_float();
-                    hill_mat[1][1] = gen_random_float();
-                    hill_mat[1][2] = gen_random_float();
-                    hill_mat[2][0] = gen_random_float();
-                    hill_mat[2][1] = gen_random_float();
-                    hill_mat[2][2] = gen_random_float();
+                    hill_mat(0, 0) = gen_random_float();
+                    hill_mat(0, 1) = gen_random_float();
+                    hill_mat(0, 2) = gen_random_float();
+                    hill_mat(1, 0) = gen_random_float();
+                    hill_mat(1, 1) = gen_random_float();
+                    hill_mat(1, 2) = gen_random_float();
+                    hill_mat(2, 0) = gen_random_float();
+                    hill_mat(2, 1) = gen_random_float();
+                    hill_mat(2, 2) = gen_random_float();
                 }
             }
             else if (type == 3) {
@@ -164,7 +164,7 @@ int main() {
                         }
                         glBindFramebuffer(GL_FRAMEBUFFER, 0);
                         auto win_size = window.size();
-                        glViewport(0, 0, win_size.x, win_size.y);
+                        glViewport(0, 0, win_size.x(), win_size.y());
                     }
                 }
             }

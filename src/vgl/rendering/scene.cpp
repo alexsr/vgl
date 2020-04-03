@@ -1,28 +1,24 @@
 #pragma once
 
 #include "scene.hpp"
-#include "assimp/Importer.hpp"
-#include "assimp/scene.h"
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
 #include "vgl/file/file.hpp"
-#include <glm/glm.hpp>
-#include <glm/gtx/component_wise.hpp>
 #include <execution>
 #include <map>
 
 void vgl::Scene::move_to_center() {
-    auto center = glm::vec4(scene_bounds.min + scene_bounds.max) / 2.0f;
-    scene_bounds.min -= center;
-    scene_bounds.max -= center;
-    std::for_each(std::execution::par, vertices.begin(), vertices.end(), [&center](Vertex & v) {
-        v.pos -= center;
-        });
-    std::for_each(std::execution::par, object_bounds.begin(), object_bounds.end(), [&center](Bounds & b) {
-        b.min -= center;
-        b.max -= center;
-        });
+    auto center = scene_bounds.center();
+    scene_bounds.min() -= center;
+    scene_bounds.max() -= center;
+    std::for_each(std::execution::par, vertices.begin(), vertices.end(), [&center](Vertex& v) { v.pos -= center; });
+    std::for_each(std::execution::par, object_bounds.begin(), object_bounds.end(), [&center](Eigen::AlignedBox4f& b) {
+        b.min() -= center;
+        b.max() -= center;
+    });
 }
 
-template<typename T>
+template <typename T>
 void merge_vectors(std::vector<T>& a, std::vector<T>& b) {
     auto prev_size = a.size();
     a.resize(a.size() + b.size());
@@ -35,7 +31,7 @@ void vgl::Scene::join_copy(const Scene& s) {
 }
 
 void vgl::Scene::join(Scene& s) {
-    scene_bounds.join(s.scene_bounds);
+    scene_bounds.extend(s.scene_bounds);
     auto base_vertex_offset = vertices.size();
     merge_vectors(vertices, s.vertices);
     merge_vectors(indices, s.indices);
@@ -48,15 +44,17 @@ void vgl::Scene::join(Scene& s) {
     merge_vectors(draw_cmds, s.draw_cmds);
     if (offset > 0) {
         for (size_t i = 0; i < other_draw_size; ++i) {
-            draw_cmds.at(offset + i).first_index += draw_cmds.at(offset - 1).count + draw_cmds.at(offset - 1).first_index;
-            draw_cmds.at(offset + i).base_vertex += draw_cmds.at(offset - 1).base_vertex
-                + static_cast<unsigned int>(base_vertex_offset);
+            draw_cmds.at(offset + i).first_index +=
+                draw_cmds.at(offset - 1).count + draw_cmds.at(offset - 1).first_index;
+            draw_cmds.at(offset + i).base_vertex +=
+                draw_cmds.at(offset - 1).base_vertex + static_cast<unsigned int>(base_vertex_offset);
         }
     }
 }
 
-void process_scene_graph(std::vector<vgl::Scene_object>& objs, aiNode* node, glm::mat4 transform = glm::mat4(1.0f)) {
-    auto t = transform * glm::transpose(reinterpret_cast<glm::mat4&>(node->mTransformation));
+void process_scene_graph(std::vector<vgl::Scene_object>& objs, aiNode* node,
+                         Eigen::Matrix4f transform = Eigen::Matrix4f::Identity()) {
+    auto t = transform;//    *reinterpret_cast<Eigen::Matrix4f&>(node->mTransformation).transpose();
     for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
         objs.at(node->mMeshes[i]).model = t;
     }
@@ -65,16 +63,16 @@ void process_scene_graph(std::vector<vgl::Scene_object>& objs, aiNode* node, glm
     }
 }
 
-vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to_center,
-    bool load_materials, bool load_images) {
+vgl::Scene vgl::load_scene(const std::filesystem::path& file_path, bool move_to_center, bool load_materials,
+                           bool load_images) {
     if (!file::is_file(file_path)) {
-        throw std::runtime_error{ "File not found." }; // TODO
+        throw std::runtime_error{"File not found."}; // TODO
     }
     auto path_parent = file_path.parent_path();
     Assimp::Importer importer;
     const auto ai_scene = importer.ReadFile(file_path.string(), impl::aiprocess_flags);
     if (!ai_scene) {
-        throw std::runtime_error{ "File not found." }; // TODO
+        throw std::runtime_error{"File not found."}; // TODO
     }
     Scene scene{};
     scene.objects.resize(ai_scene->mNumMeshes);
@@ -104,7 +102,7 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
             if (ai_tex_available == AI_SUCCESS && file::is_file(file_path)) {
                 diffuse_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Image_info{ tex_path, 4 });
+                    scene.textures.emplace_back(Image_info{tex_path, 4});
                 }
             }
             /*ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_NORMALS(0), path);
@@ -120,7 +118,7 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
             if (ai_tex_available == AI_SUCCESS && file::is_file(file_path)) {
                 specular_map[name] = path.C_Str();
                 if (texture_map.emplace(path.C_Str(), scene.textures.size()).second) {
-                    scene.textures.emplace_back(Image_info{ tex_path, 4 });
+                    scene.textures.emplace_back(Image_info{tex_path, 4});
                 }
             }
             /*ai_tex_available = ai_mat->Get(AI_MATKEY_TEXTURE_EMISSIVE(0), path);
@@ -154,13 +152,9 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
 #pragma omp parallel for
     for (int m = 0; m < ai_scene->mNumMeshes; m++) {
         auto ai_mesh = ai_scene->mMeshes[m];
-        scene.draw_cmds[m] = gl::Indirect_elements_command{
-            static_cast<unsigned int>(ai_mesh->mNumFaces * 3),
-            1,
-            static_cast<unsigned int>(start_indices[m] * 3),
-            static_cast<unsigned int>(start_vertices[m]),
-            0
-            };
+        scene.draw_cmds[m] = gl::Indirect_elements_command{static_cast<unsigned int>(ai_mesh->mNumFaces * 3), 1,
+                                                           static_cast<unsigned int>(start_indices[m] * 3),
+                                                           static_cast<unsigned int>(start_vertices[m]), 0};
         for (int i = 0; i < static_cast<int>(ai_mesh->mNumFaces); i++) {
             auto scene_i = start_indices[m] + i;
             if (ai_mesh->mFaces->mNumIndices != 3) {
@@ -170,24 +164,23 @@ vgl::Scene vgl::load_scene(const std::filesystem::path & file_path, bool move_to
             scene.indices[scene_i * 3 + 1] = ai_mesh->mFaces[i].mIndices[1];
             scene.indices[scene_i * 3 + 2] = ai_mesh->mFaces[i].mIndices[2];
         }
-        Bounds bounds{};
+        Eigen::AlignedBox4f bounds{};
         for (int i = 0; i < static_cast<int>(ai_mesh->mNumVertices); i++) {
             auto scene_i = start_vertices[m] + i;
-            scene.vertices[scene_i].pos = glm::vec4(reinterpret_cast<glm::vec3&>(ai_mesh->mVertices[i]), 1.0f);
-            bounds.min = glm::min(bounds.min, scene.vertices[scene_i].pos);
-            bounds.max = glm::max(bounds.max, scene.vertices[scene_i].pos);
+            scene.vertices[scene_i].pos = reinterpret_cast<Eigen::Vector3f&>(ai_mesh->mVertices[i]).homogeneous();
+            bounds.extend(scene.vertices[scene_i].pos);
             if (ai_mesh->HasNormals()) {
-                scene.vertices[scene_i].normal = glm::vec4(reinterpret_cast<glm::vec3&>(ai_mesh->mNormals[i]), 0.0f);
+                scene.vertices[scene_i].normal << reinterpret_cast<Eigen::Vector3f&>(ai_mesh->mNormals[i]), 0.0f;
             }
             if (ai_mesh->HasTangentsAndBitangents()) {
-                scene.vertices[scene_i].tangent = glm::vec4(reinterpret_cast<glm::vec3&>(ai_mesh->mTangents[i]), 0.0f);
+                scene.vertices[scene_i].tangent << reinterpret_cast<Eigen::Vector3f&>(ai_mesh->mTangents[i]), 0.0f;
             }
             if (ai_mesh->HasTextureCoords(0)) {
-                scene.vertices[scene_i].uv = glm::vec4(reinterpret_cast<glm::vec2&>(ai_mesh->mTextureCoords[0][i]), 0.0f, 0.0f);
+                scene.vertices[scene_i].uv << reinterpret_cast<Eigen::Vector2f&>(ai_mesh->mTextureCoords[0][i]), 0.0f, 0.0f;
             }
         }
         scene.object_bounds[m] = bounds;
-        scene.scene_bounds.join(bounds);
+        scene.scene_bounds.extend(bounds);
         if (ai_scene->mMeshes[m]->mMaterialIndex >= 0) {
             scene.objects[m].material_id = static_cast<int>(ai_scene->mMeshes[m]->mMaterialIndex);
             if (names.find(ai_scene->mMeshes[m]->mMaterialIndex) != names.end()) {

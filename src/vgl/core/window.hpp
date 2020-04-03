@@ -1,7 +1,7 @@
 #pragma once
 
-#include "GLFW/glfw3.h"
-#include "glm/vec2.hpp"
+#include <GLFW/glfw3.h>
+#include <Eigen/Core>
 #include <atomic>
 #include <memory>
 #include "win_callbacks.hpp"
@@ -12,34 +12,35 @@ namespace vgl
     public:
         Window(int width, int height, const std::string& title, GLFWmonitor* monitor = nullptr, GLFWwindow* share = nullptr);
         void enable_gl(int major = 4, int minor = 6);
+        void swap_interval(int interval = 0);
         void poll_events();
         void swap_buffers() const;
         bool should_close() const;
         GLFWwindow* get() const;
         void close();
-        glm::ivec2 size();
-        glm::ivec2 framebuffer_size();
+        Eigen::Vector2i size();
+        Eigen::Vector2i framebuffer_size();
         operator GLFWwindow*();
 
         win::callbacks cbs;
         std::map<int, bool> key{};
         std::map<int, bool> mouse{};
-        glm::dvec2 cursor_pos{};
-        glm::dvec2 cursor_delta{};
+        Eigen::Vector2d cursor_pos{};
+        Eigen::Vector2d cursor_delta{};
     private:
         void init_callbacks(GLFWwindow* ptr);
 
         struct window_deleter {
             inline void operator()(GLFWwindow* w) const {
                 glfwDestroyWindow(w);
-                --_count;
-                if (_count == 0) {
+                --count_;
+                if (count_ == 0) {
                     glfwTerminate();
                 }
             }
         };
 
-        std::unique_ptr<GLFWwindow, window_deleter> _ptr;
-        inline static std::atomic<int> _count = 0;
+        std::unique_ptr<GLFWwindow, window_deleter> ptr_;
+        inline static std::atomic<int> count_ = 0;
     };
 }

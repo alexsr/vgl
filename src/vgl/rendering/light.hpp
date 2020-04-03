@@ -1,6 +1,7 @@
 #pragma once
 
-#include "glm/glm.hpp"
+#include <Eigen/Core>
+#include "vgl/math/constants.hpp"
 
 namespace vgl {
     struct Attenuation {
@@ -11,12 +12,12 @@ namespace vgl {
     };
 
     struct Light {
-        glm::vec4 pos{};
-        glm::vec4 color{};
-        glm::vec4 dir{ 0.0, -1.0, 0.0, 0.0 };
-        Attenuation attenuation{};
-        float outer_cutoff{ glm::pi<float>() / 4.0f };
-        float inner_cutoff{ glm::pi<float>() / 4.5f };
+        Eigen::Vector4f pos = Eigen::Vector4f::Zero();
+        Eigen::Vector4f color = Eigen::Vector4f::Zero();
+        Eigen::Vector4f dir = Eigen::Vector4f(0.0, -1.0, 0.0, 0.0);
+        Attenuation attenuation;
+        float outer_cutoff{ math::pi<float> / 4.0f };
+        float inner_cutoff{ math::pi<float> / 4.5f };
         int type = 1;
         int pad1;
     };

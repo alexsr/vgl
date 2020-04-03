@@ -5,25 +5,25 @@ namespace vgl::cpp {
     class final_op {
     public:
         explicit final_op(Function f) noexcept
-            : _function(std::move(f)), _invoke(true) {}
+            : function_(std::move(f)), invoke_(true) {}
 
         final_op(final_op&& other) noexcept
-            : _function(std::move(other._function)),
-            _invoke(other._invoke) {
-            other._invoke = false;
+            : function_(std::move(other.function_)),
+            invoke_(other.invoke_) {
+            other.invoke_ = false;
         }
 
         final_op(const final_op&) = delete;
         final_op& operator=(const final_op&) = delete;
 
         ~final_op() noexcept {
-            if (_invoke) {
-                _function();
+            if (invoke_) {
+                function_();
             }
         }
 
     private:
-        Function _function;
-        bool _invoke;
+        Function function_;
+        bool invoke_;
     };
 }

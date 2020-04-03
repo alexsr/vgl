@@ -28,7 +28,7 @@ layout (location = 7) out mat3 _inv_t_model;
 void main() {
     int id = gl_DrawID;
     _position = vec3(objects[id].model * vec4(position, 1.0));
-    _cam_pos = cam.position;
+    _cam_pos = cam.position.xyz;
     _normal = normal;
     _inv_t_model = mat3(inverse(transpose(objects[id].model)));
     _uv = uv;

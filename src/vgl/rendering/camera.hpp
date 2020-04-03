@@ -1,34 +1,70 @@
 #pragma once
 
-#include "glm/vec2.hpp"
-#include "glm/vec3.hpp"
-#include "glm/vec4.hpp"
-#include "glm/gtc/quaternion.hpp"
+#include <functional>
+#include <memory>
+#include "vgl/math/pose.hpp"
+#include "vgl/math/projection.hpp"
+#undef near
+#undef far
 
 namespace vgl {
-    struct Cam_data {
-        glm::mat4 view{};
-        glm::vec4 position{};
-        glm::mat4 projection{};
-        glm::mat4 inv_vp{};
-    };
+struct Cam_data {
+    Eigen::Matrix4f view{};
+    Eigen::Matrix4f projection{};
+    Eigen::Matrix4f inv_vp{};
+    Eigen::Vector4f position{};
+};
 
-    struct Camera {
-        Cam_data get_cam_data();
-        glm::mat4 get_rotation();
-        glm::vec4 get_position();
-        void move(glm::vec3 dir, float dt);
-        void rotate(glm::vec2 angles, float dt);
-        void reset();
-        void change_aspect_ratio(float aspect_ratio);
-        void change_fovy(float fovy);
+class GLCamera {
+public:
+    GLCamera();
+    Cam_data get_cam_data();
+    Eigen::Matrix4d view();
+    Eigen::Matrix4f view_f();
+    Eigen::Matrix4d proj();
+    Eigen::Matrix4f proj_f();
+    void reset();
+    void change_aspect_ratio(double aspect_ratio);
+    void change_fovy(double fovy);
 
-        glm::vec3 position{ 0.0f, 0.0f, 1.0f };
-        glm::quat rotation{ 1, 0, 0, 0 };
-        glm::mat4 projection;
-        float move_speed = 1.0f;
-        float rotation_speed = 3.0f;
-    private:
-        glm::vec2 _angles{}; 
-    };
-}
+    Pose pose{};
+    Eigen::Matrix4d projection;
+};
+
+class Camera_controller {
+public:
+    using move_callback_func = std::function<bool(Eigen::Vector3d&)>;
+    using rotate_callback_func = std::function<bool(Eigen::Vector2d&)>;
+    Camera_controller();
+    Camera_controller(move_callback_func const& move_func, rotate_callback_func const& rotate_func);
+    void update_camera(GLCamera& cam, double dt);
+    void set_move_callback(move_callback_func const& func);
+    void set_rotate_callback(rotate_callback_func const& func);
+    void set_move_speed(double const move_speed);
+    void set_rotate_speed(double const rotate_speed);
+    virtual void reset() = 0;
+
+protected:
+    virtual void move(GLCamera& cam, Eigen::Vector3d const& dir, double dt) = 0;
+    virtual void rotate(GLCamera& cam, Eigen::Vector2d const& angles, double dt) = 0;
+    double move_speed_ = 1.0;
+    double rotate_speed_ = 1.0;
+
+private:
+    move_callback_func move_callback;
+    rotate_callback_func rotate_callback;
+};
+
+class Fly_through_controller : public Camera_controller {
+public:
+    Fly_through_controller();
+    Fly_through_controller(move_callback_func const& move_func, rotate_callback_func const& rotate_func);
+    void reset();
+
+protected:
+    Eigen::Vector2d angles_ = Eigen::Vector2d::Zero();
+    Eigen::Vector3d curr_pos_ = Eigen::Vector3d::Zero();
+    virtual void move(GLCamera& cam, Eigen::Vector3d const& dir, double dt);
+    virtual void rotate(GLCamera& cam, Eigen::Vector2d const& angles, double dt);
+};
+} // namespace vgl

@@ -1,44 +1,73 @@
 #include "camera.hpp"
 
-vgl::Cam_data vgl::Camera::get_cam_data() {
+vgl::Camera_controller::Camera_controller() {
+    move_callback = [](Eigen::Vector3d&) { return false; };
+    rotate_callback = [](Eigen::Vector2d&) { return false; };
+}
+
+vgl::Camera_controller::Camera_controller(move_callback_func const& move_func, rotate_callback_func const& rotate_func)
+    : move_callback(move_func), rotate_callback(rotate_func) {}
+
+void vgl::Camera_controller::update_camera(GLCamera& cam, double dt) {
+    Eigen::Vector2d angles;
+    if (rotate_callback(angles)) {
+        rotate(cam, angles, dt);
+    }
+    Eigen::Vector3d dir;
+    if (move_callback(dir)) {
+        move(cam, dir, dt);
+    }
+}
+
+void vgl::Camera_controller::set_move_callback(move_callback_func const& func) { move_callback = func; }
+void vgl::Camera_controller::set_rotate_callback(rotate_callback_func const& func) { rotate_callback = func; }
+void vgl::Camera_controller::set_move_speed(double const move_speed) { move_speed_ = move_speed; }
+void vgl::Camera_controller::set_rotate_speed(double const rotate_speed) { rotate_speed_ = rotate_speed; }
+
+vgl::Fly_through_controller::Fly_through_controller() : Camera_controller() {}
+
+vgl::Fly_through_controller::Fly_through_controller(move_callback_func const& move_func,
+                                                    rotate_callback_func const& rotate_func)
+    : Camera_controller(move_func, rotate_func) {}
+
+void vgl::Fly_through_controller::reset() { }
+
+void vgl::Fly_through_controller::move(GLCamera& cam, Eigen::Vector3d const& dir, double dt) {
+    curr_pos_ += cam.pose.rotation.conjugate() * dir * dt * move_speed_;
+    cam.pose.translation = cam.pose.rotation * -curr_pos_;
+}
+
+void vgl::Fly_through_controller::rotate(GLCamera& cam, Eigen::Vector2d const& angles, double dt) {
+    angles_ += angles * dt * rotate_speed_;
+    cam.pose.rotation = (Eigen::AngleAxisd(angles_.x(), Eigen::Vector3d::UnitX()) *
+                         Eigen::AngleAxisd(angles_.y(), Eigen::Vector3d::UnitY()));
+    cam.pose.translation = cam.pose.rotation * -curr_pos_;
+}
+
+vgl::Cam_data vgl::GLCamera::get_cam_data() {
     Cam_data data;
-    data.view = glm::translate(get_rotation(), -position);
-    data.position = get_position();
-    data.projection = projection;
-    data.inv_vp = glm::inverse(projection * get_rotation());
+    data.view = view_f();
+    data.position = pose.translation.homogeneous().cast<float>();
+    data.position.w() = 1.0f;
+    data.projection = proj_f();
+    data.inv_vp = (proj_f() * view_f()).inverse();
     return data;
 }
 
-glm::mat4 vgl::Camera::get_rotation() {
-    return glm::mat4_cast(rotation);
+Eigen::Matrix4d vgl::GLCamera::view() { return pose.to_matrix(); }
+Eigen::Matrix4f vgl::GLCamera::view_f() { return view().cast<float>(); }
+Eigen::Matrix4d vgl::GLCamera::proj() { return projection; }
+Eigen::Matrix4f vgl::GLCamera::proj_f() { return projection.cast<float>(); }
+
+void vgl::GLCamera::reset() {
+    pose = Pose();
 }
 
-glm::vec4 vgl::Camera::get_position() {
-    return glm::vec4(position, 1.0f);
+vgl::GLCamera::GLCamera() {
+    reset();
+    projection = perspective_projection<double>(1.0, 90.0, 0.1, 100.0);
 }
 
-void vgl::Camera::move(glm::vec3 dir, float dt) {
-    position += glm::conjugate(rotation) * dir * dt * move_speed;
-}
+void vgl::GLCamera::change_aspect_ratio(double aspect_ratio) { vgl::change_aspect_ratio(projection, aspect_ratio); }
 
-void vgl::Camera::rotate(glm::vec2 angles, float dt) {
-    _angles += angles * dt * rotation_speed;
-    rotation = glm::normalize(glm::quat(glm::vec3(_angles.y, 0, 0)) * glm::quat(glm::vec3(0, _angles.x, 0)));
-}
-
-void vgl::Camera::reset() {
-    position = glm::vec3{ 0.0f, 0.0f, 1.0f };
-    rotation = glm::quat{ 1, 0, 0, 0 };
-    _angles = glm::vec3(0.0f);
-}
-
-void vgl::Camera::change_aspect_ratio(float aspect_ratio) {
-    projection[0][0] = projection[1][1] / aspect_ratio;
-}
-
-void vgl::Camera::change_fovy(float fovy) {
-    auto old = projection[1][1];
-    auto tan_half = glm::tan(fovy / 2.0f);
-    projection[0][0] = projection[0][0] / old / tan_half;
-    projection[1][1] = 1.0f / tan_half;
-}
+void vgl::GLCamera::change_fovy(double fovy) { vgl::change_fovy(projection, fovy); }
