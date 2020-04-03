@@ -25,10 +25,10 @@ set(EXTERNAL_PATH ${CMAKE_SOURCE_DIR}/external)
 set(SRC_PATH ${CMAKE_SOURCE_DIR}/src)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(glsp_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cppdependencies/install-x64-Debug/lib/cmake/glsp/)
+	set(glsp_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cppdependencies/install-x64-Debug/lib/cmake/glsp/)
 endif()
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(glsp_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cppdependencies/install-x64-Release/lib/cmake/glsp/)
+	set(glsp_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cppdependencies/install-x64-Release/lib/cmake/glsp/)
 endif()
 
 find_package(OpenMP REQUIRED)

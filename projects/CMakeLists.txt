@@ -17,8 +17,8 @@ add_executable(cubemap_generator cubemap_generator/main.cpp)
 target_link_libraries(cubemap_generator PUBLIC stb::stb)
 target_compile_features(cubemap_generator PUBLIC cxx_std_17)
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set_target_properties(cubemap_generator PROPERTIES
-            LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
+	set_target_properties(cubemap_generator PROPERTIES
+			LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
 endif()
 
 add_custom_command(
